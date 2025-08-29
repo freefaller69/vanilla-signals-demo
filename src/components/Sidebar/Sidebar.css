@@ -1,0 +1,132 @@
+:host {
+  width: fit-content;
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: white;
+}
+
+.sidebar-header h2 {
+  color: #1a202c;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.new-thread-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 15px;
+  transition: all 0.2s;
+  display: block;
+  width: 100%;
+}
+
+.new-thread-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.new-thread-btn:active {
+  transform: translateY(0);
+}
+
+.stats {
+  display: flex;
+  gap: 15px;
+  font-size: 14px;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #64748b;
+}
+
+.stat-badge {
+  background: #3b82f6;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.thread-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.thread-item {
+  padding: 12px 15px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.thread-item:hover {
+  background: #e2e8f0;
+}
+
+.thread-item.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+
+.thread-item.active .thread-preview {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.thread-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.thread-preview {
+  font-size: 13px;
+  color: #64748b;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.unread-badge {
+  background: #ef4444;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 11px;
+  min-width: 18px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  #sidebar {
+    width: 100%;
+    max-height: 250px;
+  }
+
+  .message.own {
+    margin-left: 20px;
+  }
+}
