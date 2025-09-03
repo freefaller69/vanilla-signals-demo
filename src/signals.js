@@ -1,284 +1,325 @@
-// Enhanced Signals Implementation - TC39 Aligned
 class SignalSystem {
   constructor() {
     this.currentComputation = null;
-    this.batchDepth = 0;
-    this.batchedUpdates = new Set();
+    this.updateQueue = new Set();
+    this.isUpdating = false;
+    this.computationStack = [];
   }
 
-  signal(initialValue, options = {}) {
+  createSignal(initialValue) {
     const subscribers = new Set();
-    const equals = options.equals || Object.is;
+    let value = initialValue;
 
-    function signal(newValue) {
-      // Getter
-      if (arguments.length === 0) {
-        // Track dependency if we're in a computation
-        if (SignalSystem.instance.currentComputation) {
-          subscribers.add(SignalSystem.instance.currentComputation);
+    const signal = {
+      get value() {
+        if (thisSystem.currentComputation) {
+          subscribers.add(thisSystem.currentComputation);
+          thisSystem.currentComputation.dependencies.add(signal);
         }
-        return signal._value;
-      }
+        return value;
+      },
 
-      // Setter
-      if (!equals(signal._value, newValue)) {
-        signal._value = newValue;
-
-        // Batch or immediately notify subscribers
-        if (SignalSystem.instance.batchDepth > 0) {
-          // Add to batch
-          SignalSystem.instance.batchedUpdates.add(() => {
-            subscribers.forEach((subscriber) => {
-              try {
-                subscriber();
-              } catch (error) {
-                console.error('Effect error in signal update:', error);
-              }
-            });
-          });
-        } else {
-          // Immediate notification
-          subscribers.forEach((subscriber) => {
-            try {
-              subscriber();
-            } catch (error) {
-              console.error('Effect error in signal update:', error);
-            }
-          });
+      set value(newValue) {
+        if (value !== newValue) {
+          value = newValue;
+          thisSystem.scheduleUpdate(subscribers);
         }
-      }
-    }
+      },
 
-    signal._value = initialValue;
-    signal._subscribers = subscribers;
-    signal._equals = equals;
-    signal.peek = () => signal._value;
+      peek() {
+        return value;
+      },
+
+      destroy() {
+        subscribers.clear();
+      },
+
+      _subscribers: subscribers,
+      _isSignal: true,
+    };
+
+    // Save reference to this SignalSystem to support `this` inside accessors
+    const thisSystem = this;
 
     return signal;
   }
 
-  computed(fn, options = {}) {
+  createComputed(fn) {
     const subscribers = new Set();
-    const equals = options.equals || Object.is;
     let isStale = true;
     let cachedValue;
-    let cachedError = null;
-    let hasError = false;
     let isComputing = false;
+    let dependencies = new Set();
 
-    function computed() {
-      // Track dependency if we're in a computation
-      if (SignalSystem.instance.currentComputation) {
-        subscribers.add(SignalSystem.instance.currentComputation);
-      }
+    const invalidate = () => {
+      isStale = true;
+      this.scheduleUpdate(subscribers);
+    };
 
-      // Prevent recursive computation
-      if (isComputing) {
-        throw new Error('Recursive computed signal access detected');
-      }
+    const computed = {
+      get value() {
+        if (isComputing) {
+          throw new Error('Circular dependency detected in computed signal');
+        }
 
-      if (isStale) {
-        isComputing = true;
-        const prevComputation = SignalSystem.instance.currentComputation;
+        if (thisSystem.currentComputation) {
+          subscribers.add(thisSystem.currentComputation);
+          thisSystem.currentComputation.dependencies.add(computed);
+        }
 
-        const invalidate = () => {
-          if (!isStale && !isComputing) {
-            isStale = true;
-            hasError = false;
-            cachedError = null;
+        if (isStale && !isComputing) {
+          computed.computeValue();
+        }
 
-            // Notify subscribers (with batching support)
-            if (SignalSystem.instance.batchDepth > 0) {
-              SignalSystem.instance.batchedUpdates.add(() => {
-                subscribers.forEach((subscriber) => {
-                  try {
-                    subscriber();
-                  } catch (error) {
-                    console.error('Effect error in computed invalidation:', error);
-                  }
-                });
-              });
-            } else {
-              subscribers.forEach((subscriber) => {
-                try {
-                  subscriber();
-                } catch (error) {
-                  console.error('Effect error in computed invalidation:', error);
-                }
-              });
-            }
+        return cachedValue;
+      },
+
+      peek() {
+        if (isStale && !isComputing) {
+          const prevComputation = thisSystem.currentComputation;
+          thisSystem.currentComputation = null;
+          try {
+            cachedValue = thisSystem.safeExecute(fn);
+            isStale = false;
+          } finally {
+            thisSystem.currentComputation = prevComputation;
           }
+        }
+        return cachedValue;
+      },
+
+      computeValue() {
+        if (isComputing) {
+          throw new Error('Circular dependency detected in computed signal');
+        }
+
+        isComputing = true;
+        const prevComputation = thisSystem.currentComputation;
+        const oldDependencies = dependencies;
+        dependencies = new Set();
+
+        const computation = {
+          dependencies,
+          invalidate,
         };
 
-        SignalSystem.instance.currentComputation = invalidate;
+        thisSystem.currentComputation = computation;
+        thisSystem.computationStack.push(computation);
 
         try {
-          const newValue = fn.call(computed);
-
-          // Check if value actually changed
-          if (hasError || !equals(cachedValue, newValue)) {
-            cachedValue = newValue;
-            hasError = false;
-            cachedError = null;
-          }
-
+          thisSystem.detectCycle();
+          cachedValue = thisSystem.safeExecute(fn);
           isStale = false;
-        } catch (error) {
-          hasError = true;
-          cachedError = error;
-          cachedValue = undefined;
-          isStale = false;
+
+          oldDependencies.forEach((dep) => {
+            if (!dependencies.has(dep) && dep._subscribers) {
+              for (const subscriber of dep._subscribers) {
+                if (subscriber.invalidate === invalidate) {
+                  dep._subscribers.delete(subscriber);
+                  break;
+                }
+              }
+            }
+          });
         } finally {
-          SignalSystem.instance.currentComputation = prevComputation;
+          thisSystem.currentComputation = prevComputation;
+          thisSystem.computationStack.pop();
           isComputing = false;
         }
-      }
+      },
 
-      // Rethrow cached error if present
-      if (hasError) {
-        throw cachedError;
-      }
+      destroy() {
+        dependencies.forEach((dep) => {
+          if (dep._subscribers) {
+            for (const subscriber of dep._subscribers) {
+              if (subscriber.invalidate === invalidate) {
+                dep._subscribers.delete(subscriber);
+                break;
+              }
+            }
+          }
+        });
+        dependencies.clear();
+        subscribers.clear();
+      },
 
-      return cachedValue;
-    }
-
-    computed._subscribers = subscribers;
-    computed._equals = equals;
-    computed.peek = () => {
-      if (isStale) {
-        const prevComputation = SignalSystem.instance.currentComputation;
-        SignalSystem.instance.currentComputation = null;
-
-        try {
-          cachedValue = fn.call(computed);
-          hasError = false;
-          cachedError = null;
-          isStale = false;
-        } catch (error) {
-          hasError = true;
-          cachedError = error;
-          cachedValue = undefined;
-          isStale = false;
-        } finally {
-          SignalSystem.instance.currentComputation = prevComputation;
-        }
-      }
-
-      if (hasError) {
-        throw cachedError;
-      }
-
-      return cachedValue;
+      _subscribers: subscribers,
+      _isComputed: true,
     };
+
+    // Save reference to this SignalSystem to support `this` inside accessors
+    const thisSystem = this;
 
     return computed;
   }
 
-  effect(fn) {
-    let cleanup = null;
-    let isDisposed = false;
-    let isRunning = false;
-    let runCount = 0;
+  createEffect(fn) {
+    let isActive = true;
+    let dependencies = new Set();
+
+    const cleanup = () => {
+      isActive = false;
+      dependencies.forEach((dep) => {
+        if (dep._subscribers) {
+          for (const subscriber of dep._subscribers) {
+            if (subscriber === runEffect || subscriber.invalidate === runEffect) {
+              dep._subscribers.delete(subscriber);
+              break;
+            }
+          }
+        }
+      });
+      dependencies.clear();
+    };
 
     const runEffect = () => {
-      if (isDisposed || isRunning) return;
-      
-      runCount++;
-      if (runCount > 100) {
-        console.error('Effect runaway detected! Stopping effect execution.');
-        isDisposed = true;
-        return;
-      }
+      if (!isActive) return;
 
-      isRunning = true;
+      const prevComputation = this.currentComputation;
+      const oldDependencies = dependencies;
+      dependencies = new Set();
 
-      // Run cleanup from previous effect run
-      if (cleanup && typeof cleanup === 'function') {
-        try {
-          cleanup();
-        } catch (error) {
-          console.error('Effect cleanup error:', error);
-        }
-        cleanup = null;
-      }
+      const computation = {
+        dependencies,
+        invalidate: runEffect,
+      };
 
-      const prevComputation = SignalSystem.instance.currentComputation;
-      SignalSystem.instance.currentComputation = runEffect;
+      this.currentComputation = computation;
+      this.computationStack.push(computation);
 
       try {
-        cleanup = fn() || null;
-      } catch (error) {
-        console.error('Effect execution error:', error);
+        this.detectCycle();
+        this.safeExecute(fn);
+
+        oldDependencies.forEach((dep) => {
+          if (!dependencies.has(dep) && dep._subscribers) {
+            for (const subscriber of dep._subscribers) {
+              if (subscriber === runEffect || subscriber.invalidate === runEffect) {
+                dep._subscribers.delete(subscriber);
+                break;
+              }
+            }
+          }
+        });
       } finally {
-        SignalSystem.instance.currentComputation = prevComputation;
-        isRunning = false;
+        this.currentComputation = prevComputation;
+        this.computationStack.pop();
       }
     };
 
-    // Run immediately
     runEffect();
 
-    // Return disposal function
-    return () => {
-      isDisposed = true;
-      if (cleanup && typeof cleanup === 'function') {
-        try {
-          cleanup();
-        } catch (error) {
-          console.error('Effect disposal error:', error);
-        }
-        cleanup = null;
-      }
-    };
+    return cleanup;
   }
 
-  batch(fn) {
-    this.batchDepth++;
+  detectCycle() {
+    const currentComputation = this.currentComputation;
+    if (!currentComputation) return;
+
+    let count = 0;
+    for (let i = 0; i < this.computationStack.length; i++) {
+      if (this.computationStack[i] === currentComputation) {
+        count++;
+        if (count > 1) {
+          throw new Error('Circular dependency detected in signal computation');
+        }
+      }
+    }
+  }
+
+  scheduleUpdate(subscribers) {
+    subscribers.forEach((subscriber) => {
+      if (typeof subscriber === 'function') {
+        this.updateQueue.add(subscriber);
+      } else if (subscriber.invalidate) {
+        this.updateQueue.add(subscriber.invalidate);
+      }
+    });
+
+    if (!this.isUpdating) {
+      this.flushUpdates();
+    }
+  }
+
+  flushUpdates() {
+    if (this.isUpdating) return;
+
+    this.isUpdating = true;
 
     try {
-      const result = fn();
-
-      // Execute all batched updates
-      if (this.batchDepth === 1) {
-        const updates = Array.from(this.batchedUpdates);
-        this.batchedUpdates.clear();
+      while (this.updateQueue.size > 0) {
+        const updates = Array.from(this.updateQueue);
+        this.updateQueue.clear();
 
         updates.forEach((update) => {
           try {
             update();
           } catch (error) {
-            console.error('Batched update error:', error);
+            console.error('Error in signal update:', error);
           }
         });
       }
-
-      return result;
     } finally {
-      this.batchDepth--;
+      this.isUpdating = false;
     }
   }
 
-  untrack(fn) {
-    const prevComputation = this.currentComputation;
-    this.currentComputation = null;
+  safeExecute(fn) {
     try {
       return fn();
+    } catch (error) {
+      console.error('Error in signal computation:', error);
+      throw error;
+    }
+  }
+
+  batch(fn) {
+    const wasUpdating = this.isUpdating;
+    this.isUpdating = true;
+
+    try {
+      const result = fn();
+      if (!wasUpdating) {
+        this.isUpdating = false;
+        this.flushUpdates();
+      }
+      return result;
     } finally {
-      this.currentComputation = prevComputation;
+      this.isUpdating = wasUpdating;
     }
   }
 }
 
-// Create singleton instance
-const signalSystem = new SignalSystem();
-SignalSystem.instance = signalSystem;
+// Factory functions to match the ergonomic API of the TC39 proposal
+function createSignalSystem() {
+  const system = new SignalSystem();
 
-// Export the main functions
-export const signal = (initialValue, options) => signalSystem.signal(initialValue, options);
-export const computed = (fn, options) => signalSystem.computed(fn, options);
-export const effect = (fn) => signalSystem.effect(fn);
-export const batch = (fn) => signalSystem.batch(fn);
-export const untrack = (fn) => signalSystem.untrack(fn);
+  return {
+    signal: (initialValue) => system.createSignal(initialValue),
+    computed: (fn) => system.createComputed(fn),
+    effect: (fn) => system.createEffect(fn),
+    batch: (fn) => system.batch(fn),
+    system,
+  };
+}
 
-// Export system for debugging
-export { signalSystem };
+// Default instance for global convenience
+const defaultSystem = createSignalSystem();
+
+const signal = defaultSystem.signal;
+const computed = defaultSystem.computed;
+const effect = defaultSystem.effect;
+const batch = defaultSystem.batch;
+
+export { signal, computed, effect, batch, createSignalSystem, SignalSystem };
+
+if (typeof window !== 'undefined') {
+  window.Signals = {
+    signal,
+    computed,
+    effect,
+    batch,
+    createSignalSystem,
+    SignalSystem,
+  };
+}
