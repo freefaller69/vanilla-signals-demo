@@ -81,31 +81,35 @@ export const messageInput = signal('');
 
 // COMPUTED - Derived reactive values
 export const activeThread = computed(() => {
-  const threadId = activeThreadId();
+  const threadId = activeThreadId.value;
+  const allThreads = threads.value;
+  console.log('activeThread computed - threadId:', threadId, 'threads count:', allThreads.length);
   if (!threadId) return null;
-  return threads().find((t) => t.id === threadId) || null;
+  const found = allThreads.find((t) => t.id === threadId);
+  console.log('activeThread computed - found thread:', found?.name || 'null');
+  return found || null;
 });
 
 export const totalMessageCount = computed(() => {
-  return threads().reduce((total, thread) => total + thread.messages.length, 0);
+  return threads.value.reduce((total, thread) => total + thread.messages.length, 0);
 });
 
 export const unreadCount = computed(() => {
-  console.log('unreadCount');
-
-  return threads().reduce((total, thread) => {
+  return threads.value.reduce((total, thread) => {
     return total + thread.messages.filter((msg) => !msg.read).length;
   }, 0);
 });
 
-export const totalThreadCount = computed(() => threads().length);
+export const totalThreadCount = computed(() => threads.value.length);
 
 export const canSendMessage = computed(() => {
-  return activeThreadId() !== null && messageInput().trim().length > 0;
+  const threadId = activeThreadId.value;
+  const inputValue = messageInput.value;
+  return threadId !== null && inputValue.trim().length > 0;
 });
 
 export const threadStats = computed(() => {
-  return threads().map((thread) => ({
+  return threads.value.map((thread) => ({
     ...thread,
     messageCount: thread.messages.length,
     unreadCount: thread.messages.filter((msg) => !msg.read).length,
@@ -115,11 +119,14 @@ export const threadStats = computed(() => {
 
 // ACTIONS - State mutations
 export const selectThread = (threadId) => {
+  console.log('selectThread called with threadId:', threadId);
   batch(() => {
-    activeThreadId(threadId);
+    console.log('Setting activeThreadId to:', threadId);
+    activeThreadId.value = threadId;
+    console.log('activeThreadId is now:', activeThreadId.value);
 
     // Mark messages as read
-    const currentThreads = threads();
+    const currentThreads = threads.value;
     const updatedThreads = currentThreads.map((thread) => {
       if (thread.id === threadId) {
         return {
@@ -129,7 +136,7 @@ export const selectThread = (threadId) => {
       }
       return thread;
     });
-    threads(updatedThreads);
+    threads.value = updatedThreads;
   });
 
   // Dispatch custom event
@@ -141,12 +148,13 @@ export const selectThread = (threadId) => {
 };
 
 export const sendMessage = (content) => {
-  const threadId = activeThreadId();
+  console.log('sendMessage: content');
+  const threadId = activeThreadId.value;
   if (!threadId || !content.trim()) return;
 
   batch(() => {
     // Add message to thread
-    const currentThreads = threads();
+    const currentThreads = threads.value;
     const updatedThreads = currentThreads.map((thread) => {
       if (thread.id === threadId) {
         return {
@@ -166,8 +174,8 @@ export const sendMessage = (content) => {
       return thread;
     });
 
-    threads(updatedThreads);
-    messageInput('');
+    threads.value = updatedThreads;
+    messageInput.value = '';
   });
 
   // Dispatch custom event
@@ -216,7 +224,7 @@ export const createNewThread = () => {
       messages: newThread.messages.map((msg) => ({ ...msg, read: true })),
     };
 
-    threads([...threads(), newThreadWithReadMessages]);
+    threads([...threads.value, newThreadWithReadMessages]);
     activeThreadId(newThread.id);
   });
 
@@ -238,7 +246,7 @@ const simulateResponse = (threadId) => {
     "Let's discuss this further.",
   ];
 
-  const thread = threads().find((t) => t.id === threadId);
+  const thread = threads.value.find((t) => t.id === threadId);
   if (!thread) return;
 
   const otherParticipants = thread.participants.filter((p) => p !== 'You');
@@ -247,7 +255,7 @@ const simulateResponse = (threadId) => {
   const randomParticipant = otherParticipants[Math.floor(Math.random() * otherParticipants.length)];
   const randomResponse = responses[Math.floor(Math.random() * responses.length)];
 
-  const currentThreads = threads();
+  const currentThreads = threads.value;
   const updatedThreads = currentThreads.map((t) => {
     if (t.id === threadId) {
       return {
@@ -267,5 +275,5 @@ const simulateResponse = (threadId) => {
     return t;
   });
 
-  threads(updatedThreads);
+  threads.value = updatedThreads;
 };
