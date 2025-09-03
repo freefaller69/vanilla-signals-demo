@@ -20,5 +20,7 @@ class MainContent extends HTMLElement {
   connectedCallback() {
     console.log('Main Content connected');
   }
+
 }
+
 customElements.define('main-content', MainContent);
