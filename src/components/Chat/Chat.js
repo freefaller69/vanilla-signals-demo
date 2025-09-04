@@ -1,20 +1,14 @@
 import chatHtml from './Chat.html?raw';
 import chatStyles from './Chat.css?inline';
-import { effect } from '../../signals';
+import { effect } from '../../utils/signals';
+import { setupComponent } from '../../utils/createComponent';
 import { messageInput, canSendMessage, sendMessage, activeThread } from '../../store/messageStore';
 
 class ChatComponent extends HTMLElement {
   constructor() {
     super();
     const shadowRoot = this.attachShadow({ mode: 'open' });
-
-    const styleSheet = new CSSStyleSheet();
-    styleSheet.replaceSync(chatStyles);
-    shadowRoot.adoptedStyleSheets = [styleSheet];
-
-    const templateElement = document.createElement('template');
-    templateElement.innerHTML = chatHtml;
-    shadowRoot.appendChild(templateElement.content.cloneNode(true));
+    setupComponent(shadowRoot, chatStyles, chatHtml, 'shadow');
   }
 
   connectedCallback() {

@@ -1,6 +1,8 @@
 import sidebarHtml from './Sidebar.html?raw';
 import sidebarStyles from './Sidebar.css?inline';
-import { effect } from '../../signals.js';
+import setShadowStyles from '../../utils/setShadowStyles.js';
+import setShadowTemplate from '../../utils/setShadowTemplate.js';
+import { effect } from '../../utils/signals.js';
 import {
   totalThreadCount,
   totalMessageCount,
@@ -15,20 +17,18 @@ class SidebarComponent extends HTMLElement {
   constructor() {
     super();
     const shadowRoot = this.attachShadow({ mode: 'open' });
-
-    const styleSheet = new CSSStyleSheet();
-    styleSheet.replaceSync(sidebarStyles);
-    shadowRoot.adoptedStyleSheets = [styleSheet];
-
-    const templateElement = document.createElement('template');
-    templateElement.innerHTML = sidebarHtml;
-    shadowRoot.appendChild(templateElement.content.cloneNode(true));
+    this.initialize(shadowRoot, sidebarHtml, sidebarStyles);
   }
 
   connectedCallback() {
     console.log('Sidebar component connected');
     this.bindEvents();
     this.bindEffects();
+  }
+
+  initialize(root, html, styles) {
+    setShadowStyles(root, styles);
+    setShadowTemplate(root, html);
   }
 
   bindEvents() {
