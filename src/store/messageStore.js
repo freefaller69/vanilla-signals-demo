@@ -1,4 +1,4 @@
-import { signal, computed, batch } from '../signals.js';
+import { signal, computed, batch } from '../signals/signals.js';
 
 // Sample data
 const initialThreads = [
