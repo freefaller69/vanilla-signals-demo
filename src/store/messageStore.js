@@ -224,8 +224,8 @@ export const createNewThread = () => {
       messages: newThread.messages.map((msg) => ({ ...msg, read: true })),
     };
 
-    threads([...threads.value, newThreadWithReadMessages]);
-    activeThreadId(newThread.id);
+    threads.value = [...threads.value, newThreadWithReadMessages];
+    activeThreadId.value = newThread.id;
   });
 
   return newThread.id;
