@@ -35,10 +35,6 @@ function applyStyles(target, styles, domType = 'shadow') {
 }
 
 function applyTemplate(target, html) {
-  console.group('applyTemplate');
-  console.log('target', target);
-  console.log('html', html);
-  console.groupEnd();
   const templateElement = document.createElement('template');
   templateElement.innerHTML = html;
   target.appendChild(templateElement.content.cloneNode(true));
