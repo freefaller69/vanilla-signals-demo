@@ -1,11 +1,11 @@
 import './components/MainContent/MainContent.js';
-import './style.css';
-
 import { activeThreadId, selectThread, threads } from './store/messageStore.js';
-import './style.css';
+import globalStyles from './style.css?inline';
+import { applyGlobalStyles } from './utils/createComponent.js';
 
 class MessagingApp {
   constructor() {
+    applyGlobalStyles(globalStyles);
     this.bindGlobalEvents();
     // this.autoSelectFirstThread();
   }
