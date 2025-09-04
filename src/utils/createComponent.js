@@ -16,6 +16,10 @@ export function createComponent(styles, html, domType = 'shadow', options = {}) 
   };
 }
 
+export function applyGlobalStyles(styles) {
+  applyStyles(document, styles);
+}
+
 function applyStyles(target, styles, domType = 'shadow') {
   if (domType === 'shadow') {
     // Shadow DOM: use adoptedStyleSheets
