@@ -10,11 +10,8 @@
 }
 
 main {
-  width: fit-content;
   height: 100%;
-  display: grid;
+  display: flex;
   justify-content: start;
-  grid-template-areas:
-    'sidebar chat';
 }
 

@@ -13,7 +13,6 @@ body {
 }
 
 #app {
-  width: fit-content;
   background: white;
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0,0,0,0.1);
