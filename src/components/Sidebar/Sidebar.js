@@ -1,6 +1,6 @@
 import sidebarHtml from './Sidebar.html?raw';
 import sidebarStyles from './Sidebar.css?inline';
-import { setupComponent } from '../../utils/createComponent.js';
+import { setupComponent } from '../../utilities/createComponent.js';
 import { effect } from '../../signals/signals';
 import {
   totalThreadCount,

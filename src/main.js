@@ -1,7 +1,7 @@
 import './components/MainContent/MainContent.js';
 import { activeThreadId, selectThread, threads } from './store/messageStore.js';
 import globalStyles from './style.css?inline';
-import { applyGlobalStyles } from './utils/createComponent.js';
+import { applyGlobalStyles } from './utilities/createComponent.js';
 
 class MessagingApp {
   constructor() {

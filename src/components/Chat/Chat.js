@@ -1,7 +1,7 @@
 import chatHtml from './Chat.html?raw';
 import chatStyles from './Chat.css?inline';
 import { effect } from '../../signals/signals';
-import { setupComponent } from '../../utils/createComponent';
+import { setupComponent } from '../../utilities/createComponent';
 import { messageInput, canSendMessage, sendMessage, activeThread } from '../../store/messageStore';
 
 class ChatComponent extends HTMLElement {

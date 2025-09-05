@@ -1,6 +1,6 @@
 import mainHtml from './MainContent.html?raw';
 import mainStyles from './MainContent.css?inline';
-import { setupComponent } from '../../utils/createComponent.js';
+import { setupComponent } from '../../utilities/createComponent.js';
 import '../Chat/Chat.js';
 import '../Sidebar/Sidebar.js';
 class MainContent extends HTMLElement {
