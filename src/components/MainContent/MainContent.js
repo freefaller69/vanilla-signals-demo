@@ -3,6 +3,7 @@ import mainStyles from './MainContent.css?inline';
 import { setupComponent } from '../../utilities/createComponent.js';
 import '../Chat/Chat.js';
 import '../Sidebar/Sidebar.js';
+import { startRandomMovieQuotes } from '../../store/messageStore.js';
 class MainContent extends HTMLElement {
   constructor() {
     super();
@@ -12,6 +13,7 @@ class MainContent extends HTMLElement {
 
   connectedCallback() {
     console.log('Main Content connected');
+    startRandomMovieQuotes();
   }
 }
 
