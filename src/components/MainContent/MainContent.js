@@ -7,7 +7,7 @@ class MainContent extends HTMLElement {
   constructor() {
     super();
     const shadowRoot = this.attachShadow({ mode: 'open' });
-    setupComponent(shadowRoot, mainStyles, mainHtml, 'shadow');
+    setupComponent(shadowRoot, mainStyles, mainHtml);
   }
 
   connectedCallback() {

@@ -16,7 +16,7 @@ class SidebarComponent extends HTMLElement {
   constructor() {
     super();
     const shadowRoot = this.attachShadow({ mode: 'open' });
-    setupComponent(shadowRoot, sidebarStyles, sidebarHtml, 'shadow');
+    setupComponent(shadowRoot, sidebarStyles, sidebarHtml);
   }
 
   connectedCallback() {

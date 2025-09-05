@@ -8,7 +8,7 @@ class ChatComponent extends HTMLElement {
   constructor() {
     super();
     const shadowRoot = this.attachShadow({ mode: 'open' });
-    setupComponent(shadowRoot, chatStyles, chatHtml, 'shadow');
+    setupComponent(shadowRoot, chatStyles, chatHtml);
   }
 
   connectedCallback() {
