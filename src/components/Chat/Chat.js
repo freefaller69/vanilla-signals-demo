@@ -66,7 +66,10 @@ class ChatComponent extends HTMLElement {
       }
     });
 
-    // Update messages list
+    // Update messages list with efficient incremental rendering
+    let lastRenderedMessages = [];
+    let lastThreadId = null;
+    
     effect(() => {
       const thread = activeThread.value;
       console.log(
@@ -78,7 +81,37 @@ class ChatComponent extends HTMLElement {
       const container = this.shadowRoot.querySelector('#messagesContainer');
       if (!container) return;
 
-      if (thread && thread.messages.length > 0) {
+      // If no thread selected, show welcome message
+      if (!thread) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>Welcome to Signals Messaging</h3>
+            <p>This demo showcases reactive state management with signals, computed values, and effects.</p>
+          </div>
+        `;
+        lastRenderedMessages = [];
+        lastThreadId = null;
+        return;
+      }
+
+      // If empty thread, show start conversation message
+      if (thread.messages.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>Start the conversation</h3>
+            <p>No messages in this thread yet. Send the first message!</p>
+          </div>
+        `;
+        lastRenderedMessages = [];
+        lastThreadId = thread.id;
+        return;
+      }
+
+      // Check if we switched threads (need full re-render)
+      const threadChanged = lastThreadId !== thread.id;
+      
+      if (threadChanged) {
+        // Full re-render for new thread
         container.innerHTML = thread.messages
           .map(
             (msg, index) => `
@@ -90,26 +123,35 @@ class ChatComponent extends HTMLElement {
         `
           )
           .join('');
-
-        // Auto-scroll to bottom
-        requestAnimationFrame(() => {
-          container.scrollTop = container.scrollHeight;
-        });
-      } else if (thread) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <h3>Start the conversation</h3>
-            <p>No messages in this thread yet. Send the first message!</p>
-          </div>
-        `;
+        lastRenderedMessages = [...thread.messages];
+        lastThreadId = thread.id;
       } else {
-        container.innerHTML = `
-          <div class="empty-state">
-            <h3>Welcome to Signals Messaging</h3>
-            <p>This demo showcases reactive state management with signals, computed values, and effects.</p>
-          </div>
-        `;
+        // Incremental update - only add new messages
+        const newMessages = thread.messages.slice(lastRenderedMessages.length);
+        
+        if (newMessages.length > 0) {
+          const newMessagesHtml = newMessages
+            .map(
+              (msg, index) => `
+            <div class="message ${msg.author === 'You' ? 'own' : ''}" style="animation-delay: ${(lastRenderedMessages.length + index) * 0.05}s">
+              <div class="message-author">${msg.author}</div>
+              <div class="message-content">${this.escapeHtml(msg.content)}</div>
+              <div class="message-time">${new Date(msg.timestamp).toLocaleTimeString()}</div>
+            </div>
+          `
+            )
+            .join('');
+          
+          // Append new messages without touching existing ones
+          container.insertAdjacentHTML('beforeend', newMessagesHtml);
+          lastRenderedMessages = [...thread.messages];
+        }
       }
+
+      // Auto-scroll to bottom
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
     });
 
     // Update send button state
