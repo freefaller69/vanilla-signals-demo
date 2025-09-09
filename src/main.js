@@ -24,21 +24,21 @@ class MessagingApp {
   autoSelectFirstThread() {
     // Select first thread after a brief delay
     setTimeout(() => {
-      const firstThread = threads.value[0];
+      const firstThread = threads.get()[0];
       console.log(
         'Auto-select check - firstThread:',
         firstThread?.name,
         'current activeThreadId:',
-        activeThreadId.value
+        activeThreadId.get()
       );
-      if (firstThread && !activeThreadId.value) {
+      if (firstThread && !activeThreadId.get()) {
         console.log('Auto-selecting first thread:', firstThread.name);
         selectThread(firstThread.id);
         console.log(
           '✅ Auto-selected first thread:',
           firstThread.name,
           'activeThreadId now:',
-          activeThreadId.value
+          activeThreadId.get()
         );
       }
     }, 100);

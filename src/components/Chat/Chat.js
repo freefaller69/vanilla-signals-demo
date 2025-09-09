@@ -30,9 +30,9 @@ class ChatComponent extends HTMLElement {
     // Message input changes
     messageInputEl.addEventListener('input', (e) => {
       console.log('Input event - setting messageInput to:', `"${e.target.value}"`);
-      messageInput.value = e.target.value;
+      messageInput.set(e.target.value);
       sendButton.disabled = messageInputEl.value.trim() === '';
-      console.log('Input event - messageInput signal now contains:', `"${messageInput.value}"`);
+      console.log('Input event - messageInput signal now contains:', `"${messageInput.get()}"`);
       this.autoResizeTextarea(e.target);
     });
 
@@ -48,7 +48,7 @@ class ChatComponent extends HTMLElement {
 
   bindEffects() {
     effect(() => {
-      const thread = activeThread.value;
+      const thread = activeThread.get();
       const titleEl = this.shadowRoot.querySelector('#chatTitle');
       const participantsEl = this.shadowRoot.querySelector('#chatParticipants');
 
@@ -69,9 +69,9 @@ class ChatComponent extends HTMLElement {
     // Update messages list with efficient incremental rendering
     let lastRenderedMessages = [];
     let lastThreadId = null;
-    
+
     effect(() => {
-      const thread = activeThread.value;
+      const thread = activeThread.get();
       console.log(
         'Chat: messages effect running - thread:',
         thread?.name || 'null',
@@ -109,7 +109,7 @@ class ChatComponent extends HTMLElement {
 
       // Check if we switched threads (need full re-render)
       const threadChanged = lastThreadId !== thread.id;
-      
+
       if (threadChanged) {
         // Full re-render for new thread
         container.innerHTML = thread.messages
@@ -128,7 +128,7 @@ class ChatComponent extends HTMLElement {
       } else {
         // Incremental update - only add new messages
         const newMessages = thread.messages.slice(lastRenderedMessages.length);
-        
+
         if (newMessages.length > 0) {
           const newMessagesHtml = newMessages
             .map(
@@ -141,7 +141,7 @@ class ChatComponent extends HTMLElement {
           `
             )
             .join('');
-          
+
           // Append new messages without touching existing ones
           container.insertAdjacentHTML('beforeend', newMessagesHtml);
           lastRenderedMessages = [...thread.messages];
@@ -157,7 +157,7 @@ class ChatComponent extends HTMLElement {
     // Update send button state
     effect(() => {
       const sendButton = this.shadowRoot.querySelector('#sendButton');
-      const canSend = canSendMessage.value;
+      const canSend = canSendMessage.get();
       if (sendButton) {
         sendButton.disabled = !canSend;
       }
@@ -166,7 +166,7 @@ class ChatComponent extends HTMLElement {
     // Keep input in sync with signal (only when programmatically cleared)
     effect(() => {
       const messageInputEl = this.shadowRoot.querySelector('#messageInput');
-      const signalValue = messageInput.value;
+      const signalValue = messageInput.get();
 
       // Only update DOM if signal was cleared (empty) and DOM still has content
       if (messageInputEl && signalValue === '' && messageInputEl.value !== '') {
@@ -178,7 +178,7 @@ class ChatComponent extends HTMLElement {
   }
 
   handleSendMessage() {
-    const content = messageInput.value.trim();
+    const content = messageInput.get().trim();
     if (content) {
       sendMessage(content);
     }

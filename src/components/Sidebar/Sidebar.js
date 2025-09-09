@@ -50,7 +50,7 @@ class SidebarComponent extends HTMLElement {
     effect(() => {
       const totalThreadsEl = this.shadowRoot.querySelector('#totalThreads');
       if (totalThreadsEl) {
-        totalThreadsEl.textContent = totalThreadCount.value;
+        totalThreadsEl.textContent = totalThreadCount.get();
       }
     });
 
@@ -58,7 +58,7 @@ class SidebarComponent extends HTMLElement {
     effect(() => {
       const totalMessagesEl = this.shadowRoot.querySelector('#totalMessages');
       if (totalMessagesEl) {
-        totalMessagesEl.textContent = totalMessageCount.value;
+        totalMessagesEl.textContent = totalMessageCount.get();
       }
     });
 
@@ -66,7 +66,7 @@ class SidebarComponent extends HTMLElement {
     effect(() => {
       const unreadCountEl = this.shadowRoot.querySelector('#unreadCount');
       if (unreadCountEl) {
-        const count = unreadCount.value;
+        const count = unreadCount.get();
         unreadCountEl.textContent = count;
         unreadCountEl.style.display = count > 0 ? 'inline' : 'none';
       }
@@ -77,8 +77,8 @@ class SidebarComponent extends HTMLElement {
       const threadListEl = this.shadowRoot.querySelector('#threadList');
       if (!threadListEl) return;
 
-      const stats = threadStats.value;
-      const activeId = activeThreadId.value;
+      const stats = threadStats.get();
+      const activeId = activeThreadId.get();
 
       threadListEl.innerHTML = stats
         .map(

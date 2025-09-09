@@ -6,40 +6,40 @@ class SignalSystem {
     this.computationStack = [];
   }
 
+  // 🆕 Utility to remove a subscriber from a dependency
+  removeSubscriber(dep, subscriber) {
+    if (dep && dep._subscribers) {
+      dep._subscribers.delete(subscriber);
+    }
+  }
+
   createSignal(initialValue) {
     const subscribers = new Set();
     let value = initialValue;
 
     const signal = {
-      get value() {
-        if (thisSystem.currentComputation) {
-          subscribers.add(thisSystem.currentComputation);
-          thisSystem.currentComputation.dependencies.add(signal);
+      get: () => {
+        if (this.currentComputation) {
+          subscribers.add(this.currentComputation);
+          this.currentComputation.dependencies.add(signal);
         }
         return value;
       },
 
-      set value(newValue) {
+      set: (newValue) => {
         if (value !== newValue) {
           value = newValue;
-          thisSystem.scheduleUpdate(subscribers);
+          this.scheduleUpdate(subscribers);
         }
       },
 
-      peek() {
-        return value;
-      },
+      peek: () => value,
 
-      destroy() {
-        subscribers.clear();
-      },
+      destroy: () => subscribers.clear(),
 
       _subscribers: subscribers,
       _isSignal: true,
     };
-
-    // Save reference to this SignalSystem to support `this` inside accessors
-    const thisSystem = this;
 
     return signal;
   }
@@ -57,14 +57,14 @@ class SignalSystem {
     };
 
     const computed = {
-      get value() {
+      get: () => {
         if (isComputing) {
           throw new Error('Circular dependency detected in computed signal');
         }
 
-        if (thisSystem.currentComputation) {
-          subscribers.add(thisSystem.currentComputation);
-          thisSystem.currentComputation.dependencies.add(computed);
+        if (this.currentComputation) {
+          subscribers.add(this.currentComputation);
+          this.currentComputation.dependencies.add(computed);
         }
 
         if (isStale && !isComputing) {
@@ -74,27 +74,27 @@ class SignalSystem {
         return cachedValue;
       },
 
-      peek() {
+      peek: () => {
         if (isStale && !isComputing) {
-          const prevComputation = thisSystem.currentComputation;
-          thisSystem.currentComputation = null;
+          const prevComputation = this.currentComputation;
+          this.currentComputation = null;
           try {
-            cachedValue = thisSystem.safeExecute(fn);
+            cachedValue = this.safeExecute(fn);
             isStale = false;
           } finally {
-            thisSystem.currentComputation = prevComputation;
+            this.currentComputation = prevComputation;
           }
         }
         return cachedValue;
       },
 
-      computeValue() {
+      computeValue: () => {
         if (isComputing) {
           throw new Error('Circular dependency detected in computed signal');
         }
 
         isComputing = true;
-        const prevComputation = thisSystem.currentComputation;
+        const prevComputation = this.currentComputation;
         const oldDependencies = dependencies;
         dependencies = new Set();
 
@@ -103,42 +103,29 @@ class SignalSystem {
           invalidate,
         };
 
-        thisSystem.currentComputation = computation;
-        thisSystem.computationStack.push(computation);
+        this.currentComputation = computation;
+        this.computationStack.push(computation);
 
         try {
-          thisSystem.detectCycle();
-          cachedValue = thisSystem.safeExecute(fn);
+          this.detectCycle();
+          cachedValue = this.safeExecute(fn);
           isStale = false;
 
+          // 🆕 Use helper for old dependency cleanup
           oldDependencies.forEach((dep) => {
-            if (!dependencies.has(dep) && dep._subscribers) {
-              for (const subscriber of dep._subscribers) {
-                if (subscriber.invalidate === invalidate) {
-                  dep._subscribers.delete(subscriber);
-                  break;
-                }
-              }
+            if (!dependencies.has(dep)) {
+              this.removeSubscriber(dep, computation);
             }
           });
         } finally {
-          thisSystem.currentComputation = prevComputation;
-          thisSystem.computationStack.pop();
+          this.currentComputation = prevComputation;
+          this.computationStack.pop();
           isComputing = false;
         }
       },
 
-      destroy() {
-        dependencies.forEach((dep) => {
-          if (dep._subscribers) {
-            for (const subscriber of dep._subscribers) {
-              if (subscriber.invalidate === invalidate) {
-                dep._subscribers.delete(subscriber);
-                break;
-              }
-            }
-          }
-        });
+      destroy: () => {
+        dependencies.forEach((dep) => this.removeSubscriber(dep, computed));
         dependencies.clear();
         subscribers.clear();
       },
@@ -147,33 +134,33 @@ class SignalSystem {
       _isComputed: true,
     };
 
-    // Save reference to this SignalSystem to support `this` inside accessors
-    const thisSystem = this;
-
     return computed;
   }
 
   createEffect(fn) {
     let isActive = true;
     let dependencies = new Set();
+    let cleanupFn = null; // 🆕 support returned cleanup
 
     const cleanup = () => {
-      isActive = false;
-      dependencies.forEach((dep) => {
-        if (dep._subscribers) {
-          for (const subscriber of dep._subscribers) {
-            if (subscriber === runEffect || subscriber.invalidate === runEffect) {
-              dep._subscribers.delete(subscriber);
-              break;
-            }
-          }
-        }
-      });
+      dependencies.forEach((dep) => this.removeSubscriber(dep, runEffect));
       dependencies.clear();
+
+      // 🆕 Run user cleanup if present
+      if (typeof cleanupFn === 'function') {
+        try {
+          cleanupFn();
+        } catch (e) {
+          console.error('Error in effect cleanup:', e);
+        }
+      }
+      cleanupFn = null;
     };
 
     const runEffect = () => {
       if (!isActive) return;
+
+      cleanup(); // always clean up previous
 
       const prevComputation = this.currentComputation;
       const oldDependencies = dependencies;
@@ -189,16 +176,14 @@ class SignalSystem {
 
       try {
         this.detectCycle();
-        this.safeExecute(fn);
+        const possibleCleanup = this.safeExecute(fn);
+        if (typeof possibleCleanup === 'function') {
+          cleanupFn = possibleCleanup; // 🆕 register user cleanup
+        }
 
         oldDependencies.forEach((dep) => {
-          if (!dependencies.has(dep) && dep._subscribers) {
-            for (const subscriber of dep._subscribers) {
-              if (subscriber === runEffect || subscriber.invalidate === runEffect) {
-                dep._subscribers.delete(subscriber);
-                break;
-              }
-            }
+          if (!dependencies.has(dep)) {
+            this.removeSubscriber(dep, runEffect);
           }
         });
       } finally {
@@ -207,18 +192,21 @@ class SignalSystem {
       }
     };
 
-    runEffect();
+    runEffect(); // initial run
 
-    return cleanup;
+    return () => {
+      isActive = false;
+      cleanup();
+    };
   }
 
   detectCycle() {
-    const currentComputation = this.currentComputation;
-    if (!currentComputation) return;
+    const current = this.currentComputation;
+    if (!current) return;
 
     let count = 0;
-    for (let i = 0; i < this.computationStack.length; i++) {
-      if (this.computationStack[i] === currentComputation) {
+    for (const comp of this.computationStack) {
+      if (comp === current) {
         count++;
         if (count > 1) {
           throw new Error('Circular dependency detected in signal computation');
@@ -228,11 +216,11 @@ class SignalSystem {
   }
 
   scheduleUpdate(subscribers) {
-    subscribers.forEach((subscriber) => {
-      if (typeof subscriber === 'function') {
-        this.updateQueue.add(subscriber);
-      } else if (subscriber.invalidate) {
-        this.updateQueue.add(subscriber.invalidate);
+    subscribers.forEach((sub) => {
+      if (typeof sub === 'function') {
+        this.updateQueue.add(sub);
+      } else if (sub.invalidate) {
+        this.updateQueue.add(sub.invalidate);
       }
     });
 
@@ -245,7 +233,6 @@ class SignalSystem {
     if (this.isUpdating) return;
 
     this.isUpdating = true;
-
     try {
       while (this.updateQueue.size > 0) {
         const updates = Array.from(this.updateQueue);
@@ -254,8 +241,8 @@ class SignalSystem {
         updates.forEach((update) => {
           try {
             update();
-          } catch (error) {
-            console.error('Error in signal update:', error);
+          } catch (err) {
+            console.error('Error in signal update:', err);
           }
         });
       }
@@ -267,9 +254,9 @@ class SignalSystem {
   safeExecute(fn) {
     try {
       return fn();
-    } catch (error) {
-      console.error('Error in signal computation:', error);
-      throw error;
+    } catch (err) {
+      console.error('Error in signal computation:', err);
+      throw err;
     }
   }
 
@@ -290,12 +277,11 @@ class SignalSystem {
   }
 }
 
-// Factory functions to match the ergonomic API of the TC39 proposal
+// Factory & default exports same as yours
 function createSignalSystem() {
   const system = new SignalSystem();
-
   return {
-    signal: (initialValue) => system.createSignal(initialValue),
+    signal: (v) => system.createSignal(v),
     computed: (fn) => system.createComputed(fn),
     effect: (fn) => system.createEffect(fn),
     batch: (fn) => system.batch(fn),
@@ -303,9 +289,7 @@ function createSignalSystem() {
   };
 }
 
-// Default instance for global convenience
 const defaultSystem = createSignalSystem();
-
 const signal = defaultSystem.signal;
 const computed = defaultSystem.computed;
 const effect = defaultSystem.effect;
