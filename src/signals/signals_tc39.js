@@ -81,6 +81,17 @@ class SignalSystem {
   removeSubscriber(dep, subscriber) {
     if (dep && dep._subscribers) {
       dep._subscribers.delete(subscriber);
+
+      // Check if signal has no more watchers and trigger unwatched callback
+      if (dep._subscribers.size === 0 && dep._unwatchedCallbacks && dep._unwatchedCallbacks.size > 0) {
+        dep._unwatchedCallbacks.forEach(callback => {
+          try {
+            callback.call(dep);
+          } catch (err) {
+            console.error('Error in unwatched callback:', err);
+          }
+        });
+      }
     }
   }
 }
@@ -105,9 +116,14 @@ class Signal {
       this._subscribers = new Set();
       this._options = options;
       this._watchedCallbacks = new Set();
+      this._unwatchedCallbacks = new Set();
 
       if (options[Signal.subtle.watched]) {
         this._watchedCallbacks.add(options[Signal.subtle.watched]);
+      }
+
+      if (options[Signal.subtle.unwatched]) {
+        this._unwatchedCallbacks.add(options[Signal.subtle.unwatched]);
       }
     }
 
@@ -152,9 +168,14 @@ class Signal {
       this._cachedValue = undefined;
       this._isComputing = false;
       this._watchedCallbacks = new Set();
+      this._unwatchedCallbacks = new Set();
 
       if (options[Signal.subtle.watched]) {
         this._watchedCallbacks.add(options[Signal.subtle.watched]);
+      }
+
+      if (options[Signal.subtle.unwatched]) {
+        this._unwatchedCallbacks.add(options[Signal.subtle.unwatched]);
       }
     }
 
@@ -290,6 +311,17 @@ class Signal {
               for (const subscriber of signal._subscribers) {
                 if (subscriber._watcher === this) {
                   signal._subscribers.delete(subscriber);
+
+                  // Check if signal has no more watchers and trigger unwatched callback
+                  if (signal._subscribers.size === 0 && signal._unwatchedCallbacks && signal._unwatchedCallbacks.size > 0) {
+                    signal._unwatchedCallbacks.forEach(callback => {
+                      try {
+                        callback.call(signal);
+                      } catch (err) {
+                        console.error('Error in unwatched callback:', err);
+                      }
+                    });
+                  }
                   break;
                 }
               }

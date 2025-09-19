@@ -36,10 +36,8 @@ class ChatComponent extends HTMLElement {
 
     // Message input changes
     messageInputEl.addEventListener('input', (e) => {
-      console.log('Input event - setting messageInput to:', `"${e.target.value}"`);
       messageInput.set(e.target.value);
       sendButton.disabled = messageInputEl.value.trim() === '';
-      console.log('Input event - messageInput signal now contains:', `"${messageInput.get()}"`);
       this.autoResizeTextarea(e.target);
     });
 
