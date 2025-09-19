@@ -5,6 +5,7 @@ This document walks through the signals demo application to show how reactive pr
 ## Application Overview
 
 The demo is a simple chat application that demonstrates:
+
 - **Multiple UI components** reacting to shared state
 - **Computed values** derived from multiple sources
 - **Real-time UI updates** without manual event handling
@@ -29,15 +30,13 @@ const threads = signal([
   {
     id: 1,
     name: 'General Discussion',
-    messages: [
-      { id: 1, text: 'Welcome to the chat!', timestamp: new Date(), sender: 'System' }
-    ]
+    messages: [{ id: 1, text: 'Welcome to the chat!', timestamp: new Date(), sender: 'System' }],
   },
   // ... more threads
 ]);
 
-const activeThreadId = signal(1);           // Which thread is currently selected
-const messageInput = signal('');           // Current message being typed
+const activeThreadId = signal(1); // Which thread is currently selected
+const messageInput = signal(''); // Current message being typed
 ```
 
 **Key Insight**: These are like entity models in a backend application, but they automatically notify dependents when they change.
@@ -49,7 +48,7 @@ const messageInput = signal('');           // Current message being typed
 const activeThread = computed(() => {
   const allThreads = threads.get();
   const currentId = activeThreadId.get();
-  return allThreads.find(thread => thread.id === currentId);
+  return allThreads.find((thread) => thread.id === currentId);
 });
 
 const totalMessageCount = computed(() => {
@@ -58,11 +57,12 @@ const totalMessageCount = computed(() => {
 
 const unreadCount = computed(() => {
   // In a real app, this would track actual unread messages
-  return threads.get().filter(thread => thread.id !== activeThreadId.get()).length;
+  return threads.get().filter((thread) => thread.id !== activeThreadId.get()).length;
 });
 ```
 
 **Backend Analogy**: Think of computed signals like:
+
 - **SQL Views** that automatically refresh when underlying tables change
 - **Cached properties** that invalidate when dependencies change
 - **Calculated fields** in Entity Framework that update automatically
@@ -87,16 +87,14 @@ function sendMessage() {
     id: Date.now(),
     text,
     timestamp: new Date(),
-    sender: 'You'
+    sender: 'You',
   };
 
   // Update the threads array with the new message
   // Note: We create a new array to ensure signal detects the change
-  const updatedThreads = threads.get().map(t =>
-    t.id === thread.id
-      ? { ...t, messages: [...t.messages, newMessage] }
-      : t
-  );
+  const updatedThreads = threads
+    .get()
+    .map((t) => (t.id === thread.id ? { ...t, messages: [...t.messages, newMessage] } : t));
 
   // Batch the updates to prevent intermediate calculations
   batch(() => {
@@ -105,13 +103,16 @@ function sendMessage() {
   });
 
   // Custom event for any components that need to react to message sending
-  window.dispatchEvent(new CustomEvent('messageSent', {
-    detail: { threadId: thread.id, message: newMessage }
-  }));
+  window.dispatchEvent(
+    new CustomEvent('messageSent', {
+      detail: { threadId: thread.id, message: newMessage },
+    })
+  );
 }
 ```
 
 **Key Pattern**: Notice how we:
+
 1. **Read current state** using `.get()`
 2. **Calculate new state** immutably (create new arrays/objects)
 3. **Update signals** using `.set()`
@@ -175,7 +176,8 @@ class MainContent extends HTMLElement {
 
     // Render messages
     container.innerHTML = thread.messages
-      .map(msg => `
+      .map(
+        (msg) => `
         <div class="message">
           <div class="message-header">
             <span class="sender">${msg.sender}</span>
@@ -183,18 +185,20 @@ class MainContent extends HTMLElement {
           </div>
           <div class="message-text">${msg.text}</div>
         </div>
-      `)
+      `
+      )
       .join('');
   }
 
   disconnectedCallback() {
     // CRITICAL: Clean up effects when component is removed
-    this.effectCleanups.forEach(cleanup => cleanup());
+    this.effectCleanups.forEach((cleanup) => cleanup());
   }
 }
 ```
 
 **Key Patterns**:
+
 1. **Effects for UI Updates**: Each effect handles a specific UI concern
 2. **Automatic Reactivity**: No manual event listeners for state changes
 3. **Proper Cleanup**: Effects are disposed when component unmounts
@@ -233,13 +237,15 @@ class Sidebar extends HTMLElement {
   updateThreadList(threads, activeId) {
     const container = this.shadowRoot.querySelector('#threads-list');
     container.innerHTML = threads
-      .map(thread => `
+      .map(
+        (thread) => `
         <div class="thread-item ${thread.id === activeId ? 'active' : ''}"
              data-thread-id="${thread.id}">
           <div class="thread-name">${thread.name}</div>
           <div class="message-count">${thread.messages.length} messages</div>
         </div>
-      `)
+      `
+      )
       .join('');
 
     // Set up click handlers
@@ -257,16 +263,19 @@ class Sidebar extends HTMLElement {
 ## Understanding the Data Flow
 
 ### 1. User Interaction
+
 ```
 User clicks thread → Event handler calls selectThread(id) → activeThreadId.set(id)
 ```
 
 ### 2. Automatic Updates
+
 ```
 activeThreadId changes → activeThread recomputes → All effects run automatically
 ```
 
 ### 3. UI Synchronization
+
 ```
 MainContent effect → Updates message display
 Sidebar effect     → Updates active thread highlighting
@@ -276,6 +285,7 @@ Header effect      → Updates breadcrumb (if present)
 **This all happens automatically!** No manual coordination needed.
 
 ### 4. Message Sending Flow
+
 ```
 User types → messageInput.set(text) → canSendMessage recomputes → Button state updates
 User clicks send → sendMessage() → batch() updates → All dependent UI updates
@@ -300,7 +310,7 @@ const activeThread = computed(() => {
   console.log('activeThread computing...'); // Only logs when actually needed
   const allThreads = threads.get();
   const currentId = activeThreadId.get();
-  return allThreads.find(thread => thread.id === currentId);
+  return allThreads.find((thread) => thread.id === currentId);
 });
 ```
 
@@ -329,14 +339,12 @@ class ChatApp {
   }
 
   notifyListeners(event, data) {
-    this.listeners
-      .filter(l => l.event === event)
-      .forEach(l => l.callback(data));
+    this.listeners.filter((l) => l.event === event).forEach((l) => l.callback(data));
   }
 
   sendMessage(text) {
     // Update data
-    const thread = this.threads.find(t => t.id === this.activeThreadId);
+    const thread = this.threads.find((t) => t.id === this.activeThreadId);
     thread.messages.push({ text, timestamp: new Date() });
 
     // Manually update all the UI
@@ -360,9 +368,7 @@ const activeThreadId = signal(1);
 const messageInput = signal('');
 
 // Computed values update automatically
-const activeThread = computed(() =>
-  threads.get().find(t => t.id === activeThreadId.get())
-);
+const activeThread = computed(() => threads.get().find((t) => t.id === activeThreadId.get()));
 
 // UI updates automatically through effects
 effect(() => updateMessageDisplay());
@@ -446,7 +452,7 @@ websocket.onmessage = (event) => {
   if (type === 'newMessage') {
     // Update signals - UI updates automatically
     const currentThreads = threads.get();
-    const updatedThreads = currentThreads.map(thread =>
+    const updatedThreads = currentThreads.map((thread) =>
       thread.id === data.threadId
         ? { ...thread, messages: [...thread.messages, data.message] }
         : thread
@@ -498,26 +504,32 @@ effect(() => {
 ## Best Practices Learned from the Demo
 
 ### 1. **Single Source of Truth**
+
 - All state lives in the central store
 - Components read from signals, never maintain local state copies
 
 ### 2. **Immutable Updates**
+
 - Always create new objects/arrays when updating signals
 - Use spread operators and array methods that return new instances
 
 ### 3. **Effect Cleanup**
+
 - Always store effect cleanup functions
 - Dispose effects when components unmount
 
 ### 4. **Batched Updates**
+
 - Use `batch()` when updating multiple related signals
 - Prevents intermediate states and improves performance
 
 ### 5. **Focused Signals**
+
 - Keep signals focused on single concerns
 - Use computed signals to derive complex state
 
 ### 6. **Error Boundaries**
+
 - Handle errors gracefully in effects and computations
 - Don't let one broken effect crash the entire app
 

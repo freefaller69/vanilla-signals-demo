@@ -44,15 +44,20 @@ new Signal.State<T>(initialValue: T, options?: SignalOptions<T>)
 ```
 
 **Parameters:**
+
 - `initialValue: T` - The initial value of the signal
 - `options?: SignalOptions<T>` - Optional configuration object
 
 **Example:**
+
 ```javascript
 const count = new Signal.State(0);
-const user = new Signal.State({ id: 1, name: 'John' }, {
-  equals: (a, b) => a.id === b.id // Custom equality
-});
+const user = new Signal.State(
+  { id: 1, name: 'John' },
+  {
+    equals: (a, b) => a.id === b.id, // Custom equality
+  }
+);
 ```
 
 #### Methods
@@ -84,9 +89,11 @@ count.set(5); // No effect - value unchanged
 ```
 
 **Parameters:**
+
 - `value: T` - The new value to set
 
 **Side Effects:**
+
 - Updates internal value
 - Schedules updates for all dependent computations
 - Calls lifecycle callbacks if configured
@@ -112,6 +119,7 @@ const computed = new Signal.Computed(() => {
 **Returns:** The current value
 
 **Use Cases:**
+
 - Debugging without affecting dependencies
 - Conditional logic based on signal values
 - Reading values in effect cleanup functions
@@ -125,10 +133,11 @@ const count = new Signal.State(42);
 count.dispose();
 
 console.log(count.get()); // Error: Cannot access disposed signal
-count.set(100);           // Error: Cannot set value on disposed signal
+count.set(100); // Error: Cannot set value on disposed signal
 ```
 
 **Side Effects:**
+
 - Clears all subscribers and callbacks
 - Marks signal as disposed
 - Subsequent access throws errors
@@ -146,10 +155,12 @@ new Signal.Computed<T>(callback: () => T, options?: SignalOptions<T>)
 ```
 
 **Parameters:**
+
 - `callback: () => T` - Function that computes the value
 - `options?: SignalOptions<T>` - Optional configuration object
 
 **Example:**
+
 ```javascript
 const firstName = new Signal.State('John');
 const lastName = new Signal.State('Doe');
@@ -177,6 +188,7 @@ console.log(doubled.get()); // 20 - automatically recalculated
 **Returns:** The computed value
 
 **Behavior:**
+
 - Returns cached value if dependencies haven't changed
 - Recalculates if any dependency has changed
 - Establishes dependencies with other signals during computation
@@ -210,6 +222,7 @@ console.log(computed.get()); // Error: Cannot access disposed computed signal
 ```
 
 **Side Effects:**
+
 - Removes itself from all dependency signals
 - Clears internal state and callbacks
 - Triggers unwatched callbacks on dependencies if appropriate
@@ -241,17 +254,17 @@ Custom function to determine if two values are equal. Used to prevent unnecessar
 ```javascript
 // Object comparison by ID
 const user = new Signal.State(userObj, {
-  equals: (a, b) => a.id === b.id
+  equals: (a, b) => a.id === b.id,
 });
 
 // Deep equality for arrays
 const items = new Signal.State([], {
-  equals: (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  equals: (a, b) => JSON.stringify(a) === JSON.stringify(b),
 });
 
 // Numeric tolerance
 const temperature = new Signal.State(20.0, {
-  equals: (a, b) => Math.abs(a - b) < 0.1
+  equals: (a, b) => Math.abs(a - b) < 0.1,
 });
 ```
 
@@ -270,7 +283,7 @@ const expensiveData = new Signal.State(null, {
     this.pollInterval = setInterval(() => {
       // Update data from server
     }, 1000);
-  }
+  },
 });
 ```
 
@@ -285,7 +298,7 @@ const expensiveData = new Signal.State(null, {
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
     }
-  }
+  },
 });
 ```
 
@@ -308,9 +321,11 @@ new Signal.subtle.Watcher(notify: () => void)
 ```
 
 **Parameters:**
+
 - `notify: () => void` - Callback function called when watched signals change
 
 **Example:**
+
 ```javascript
 const watcher = new Signal.subtle.Watcher(() => {
   console.log('Signals changed:', watcher.getPending());
@@ -328,7 +343,7 @@ Start watching the specified signals for changes.
 ```javascript
 const watcher = new Signal.subtle.Watcher(() => {
   const pending = watcher.getPending();
-  pending.forEach(signal => {
+  pending.forEach((signal) => {
     console.log('Signal changed:', signal);
   });
 });
@@ -352,7 +367,7 @@ Returns an array of signals that have changed since the last notification.
 ```javascript
 const watcher = new Signal.subtle.Watcher(() => {
   const changed = watcher.getPending();
-  changed.forEach(signal => {
+  changed.forEach((signal) => {
     // Handle each changed signal
     updateUI(signal);
   });
@@ -379,11 +394,13 @@ const computed = new Signal.Computed(() => {
 ```
 
 **Parameters:**
+
 - `callback: () => T` - Function to execute without dependency tracking
 
 **Returns:** The result of the callback
 
 **Use Cases:**
+
 - Reading signals for logging/debugging
 - Conditional logic that shouldn't affect dependencies
 - Reading configuration values
@@ -416,6 +433,7 @@ console.log(dependencies); // [a, b]
 ```
 
 **Parameters:**
+
 - `signal: Signal` - The signal to introspect
 
 **Returns:** Array of dependency signals (empty for state signals)
@@ -434,6 +452,7 @@ console.log(dependents.length); // 2
 ```
 
 **Parameters:**
+
 - `signal: Signal` - The signal to introspect
 
 **Returns:** Array of dependent computations
@@ -465,6 +484,7 @@ batch(() => {
 ```
 
 **Parameters:**
+
 - `fn: () => T` - Function containing signal updates
 
 **Returns:** The result of the function
@@ -494,11 +514,13 @@ cleanup();
 ```
 
 **Parameters:**
+
 - `fn: () => (void | (() => void))` - Effect function that optionally returns a cleanup function
 
 **Returns:** Function to dispose the effect
 
 **Behavior:**
+
 - Runs immediately when created
 - Re-runs when any accessed signal changes
 - Calls cleanup function before re-running
@@ -643,12 +665,12 @@ deep.get(); // Error: Maximum computation depth exceeded
 ```javascript
 // For objects, compare by key properties
 const user = new Signal.State(userObject, {
-  equals: (a, b) => a.id === b.id && a.version === b.version
+  equals: (a, b) => a.id === b.id && a.version === b.version,
 });
 
 // For arrays, use appropriate comparison
 const items = new Signal.State([], {
-  equals: (a, b) => a.length === b.length && a.every((item, i) => item.id === b[i].id)
+  equals: (a, b) => a.length === b.length && a.every((item, i) => item.id === b[i].id),
 });
 ```
 
@@ -667,7 +689,7 @@ const websocketData = new Signal.State(null, {
       this.socket.close();
       this.socket = null;
     }
-  }
+  },
 });
 ```
 
@@ -682,8 +704,8 @@ const searchResults = new Signal.Computed(() => {
   if (!query.trim()) return [];
 
   return data
-    .filter(item => matchesQuery(item, query))
-    .filter(item => matchesFilters(item, filters))
+    .filter((item) => matchesQuery(item, query))
+    .filter((item) => matchesFilters(item, filters))
     .sort((a, b) => calculateRelevance(b, query) - calculateRelevance(a, query))
     .slice(0, 50); // Limit results
 });

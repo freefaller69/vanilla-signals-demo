@@ -49,12 +49,15 @@ count.set(5); // Logs: "Count: 5, Doubled: 10"
 ## 📚 Documentation
 
 ### For Newcomers
+
 - **[Signals Guide](./SIGNALS_GUIDE.md)** - Complete introduction to reactive programming with signals, designed especially for backend engineers transitioning to frontend development
 
 ### For Practitioners
+
 - **[Demo Walkthrough](./DEMO_WALKTHROUGH.md)** - Deep dive into the chat application architecture, showing real-world patterns and best practices
 
 ### For Reference
+
 - **[API Reference](./API_REFERENCE.md)** - Comprehensive technical documentation of all classes, methods, and APIs
 
 ## 🏗️ Architecture
@@ -85,12 +88,14 @@ src/
 ## 🎯 Core Benefits
 
 ### For Development
+
 - **Declarative**: Describe what the UI should look like, not how to update it
 - **Automatic**: Dependencies tracked automatically, no manual event handling
 - **Efficient**: Only recalculate what's actually changed
 - **Debuggable**: Clear data flow and comprehensive error handling
 
 ### For Production
+
 - **Memory Safe**: Automatic cleanup prevents leaks
 - **Error Resilient**: Isolated failures don't crash the application
 - **Performance Optimized**: Batched updates and memoization
@@ -112,6 +117,7 @@ pnpm test --coverage
 ```
 
 **Test Coverage:**
+
 - ✅ Core signal functionality (State, Computed)
 - ✅ Effect system with cleanup and error handling
 - ✅ Batching and performance optimization
@@ -122,23 +128,26 @@ pnpm test --coverage
 ## 🔧 API Overview
 
 ### Signal.State
+
 ```javascript
 const count = new Signal.State(0);
-count.get();    // Read value
-count.set(5);   // Update value
-count.peek();   // Read without dependency tracking
+count.get(); // Read value
+count.set(5); // Update value
+count.peek(); // Read without dependency tracking
 count.dispose(); // Clean up
 ```
 
 ### Signal.Computed
+
 ```javascript
 const doubled = new Signal.Computed(() => count.get() * 2);
-doubled.get();   // Get computed value
-doubled.peek();  // Peek without dependencies
+doubled.get(); // Get computed value
+doubled.peek(); // Peek without dependencies
 doubled.dispose(); // Clean up
 ```
 
 ### Effects
+
 ```javascript
 const cleanup = effect(() => {
   console.log('Count changed:', count.get());
@@ -149,6 +158,7 @@ cleanup(); // Stop effect
 ```
 
 ### Batching
+
 ```javascript
 batch(() => {
   state1.set(newValue1);
@@ -176,18 +186,21 @@ The included chat application demonstrates:
 ## 🏆 Production Readiness
 
 ### Error Handling
+
 - Computation errors are caught and logged
 - Effect failures don't crash other effects
 - Circular dependency detection prevents infinite loops
 - Stack overflow protection with configurable depth limits
 
 ### Memory Management
+
 - Automatic cleanup when signals lose subscribers
 - Manual disposal for dynamic signals
 - Lifecycle callbacks for resource management
 - No memory leaks in normal usage patterns
 
 ### Performance
+
 - Automatic memoization prevents redundant calculations
 - Batched updates reduce DOM thrashing
 - Microtask scheduling minimizes event loop pressure
@@ -206,6 +219,7 @@ This implementation follows the [TC39 Signals Proposal](https://github.com/tc39/
 ### Extensions
 
 Beyond the base proposal, this implementation adds:
+
 - `peek()` method for dependency-free reading
 - `batch()` function for performance optimization
 - `effect()` function for convenient side effects
@@ -263,12 +277,14 @@ Signals provide excellent performance characteristics:
 ## 🤔 When to Use Signals
 
 **Ideal for:**
+
 - Interactive applications with complex state
 - Real-time interfaces requiring immediate updates
 - Applications where manual event handling becomes unwieldy
 - Performance-critical frontends requiring minimal re-computation
 
 **Consider alternatives for:**
+
 - Simple, mostly static interfaces
 - Server-side rendering without interactivity
 - Applications with very simple state management needs

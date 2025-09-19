@@ -5,6 +5,7 @@
 If you're coming from a .NET background, you might be thinking of signals in terms of ASP.NET SignalR or event-driven patterns. Frontend signals are different—they're a **reactive programming primitive** that automatically manages dependencies and updates when state changes.
 
 Think of signals as **smart properties** that:
+
 - Automatically track what depends on them (like computed properties in C#)
 - Only recalculate when their dependencies actually change
 - Eliminate manual event handling and callback hell
@@ -13,6 +14,7 @@ Think of signals as **smart properties** that:
 ## Why Signals Matter in Frontend Development
 
 Unlike backend services where you often pull data on-demand, frontend applications need to:
+
 - **React instantly** to user interactions
 - **Synchronize** multiple UI components automatically
 - **Minimize unnecessary re-renders** for performance
@@ -38,6 +40,7 @@ count.set(5);
 ```
 
 **Key differences from backend patterns:**
+
 - No explicit event subscription needed
 - Dependencies are tracked automatically
 - Updates are batched and efficient
@@ -57,6 +60,7 @@ console.log(doubled.get()); // 10 - automatically updated!
 ```
 
 **Think of it like:**
+
 - C# computed properties that automatically invalidate
 - Reactive Extensions (Rx) operators
 - Database views that automatically refresh
@@ -86,7 +90,7 @@ user.set({ name: 'John', status: 'offline' }); // Effect runs again
 const user = new Signal.State({
   name: 'John Doe',
   email: 'john@example.com',
-  isOnline: true
+  isOnline: true,
 });
 
 // Computed values
@@ -112,7 +116,7 @@ effect(() => {
 user.set({
   name: 'John Doe',
   email: 'john@example.com',
-  isOnline: false
+  isOnline: false,
 });
 ```
 
@@ -128,7 +132,7 @@ const itemCount = new Signal.Computed(() => {
 });
 
 const totalPrice = new Signal.Computed(() => {
-  return cartItems.get().reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  return cartItems.get().reduce((sum, item) => sum + item.price * item.quantity, 0);
 });
 
 const formattedTotal = new Signal.Computed(() => {
@@ -147,7 +151,7 @@ effect(() => {
 // Add item - everything updates automatically
 function addToCart(product) {
   const current = cartItems.get();
-  const existing = current.find(item => item.id === product.id);
+  const existing = current.find((item) => item.id === product.id);
 
   if (existing) {
     existing.quantity += 1;
@@ -229,7 +233,7 @@ const user = new Signal.State(
     equals: (a, b) => {
       // Deep equality check or compare specific fields
       return a.id === b.id && a.name === b.name && a.preferences.theme === b.preferences.theme;
-    }
+    },
   }
 );
 ```
@@ -245,7 +249,7 @@ const expensiveData = new Signal.State(null, {
   },
   [Signal.subtle.unwatched]: () => {
     console.log('No more watchers - can stop polling');
-  }
+  },
 });
 ```
 
@@ -270,7 +274,7 @@ class UserComponent {
 
   destroy() {
     // Clean up all effects
-    this.cleanups.forEach(cleanup => cleanup());
+    this.cleanups.forEach((cleanup) => cleanup());
   }
 }
 ```
@@ -278,26 +282,31 @@ class UserComponent {
 ## Best Practices
 
 ### 1. **Keep Signals Focused**
+
 - One concern per signal
 - Prefer multiple simple signals over complex objects
 - Use computed signals to derive complex state
 
 ### 2. **Minimize Signal Mutations**
+
 - Treat signal values as immutable when possible
 - Use spread operators or object/array methods that return new instances
 - Avoid deep mutations of signal values
 
 ### 3. **Use Effects for Side Effects Only**
+
 - DOM updates
 - API calls
 - Logging
 - Local storage updates
 
 ### 4. **Batch Related Updates**
+
 - Use `batch()` when updating multiple related signals
 - Prevents intermediate computations and UI flicker
 
 ### 5. **Handle Cleanup Properly**
+
 - Always dispose effects when components unmount
 - Dispose dynamic signals to prevent memory leaks
 - Use lifecycle callbacks for expensive resources
@@ -305,6 +314,7 @@ class UserComponent {
 ## Common Pitfalls for Backend Developers
 
 ### 1. **Don't Think in Events**
+
 ```javascript
 // ❌ Backend/event thinking
 user.addEventListener('change', () => {
@@ -318,6 +328,7 @@ effect(() => {
 ```
 
 ### 2. **Don't Manually Track Dependencies**
+
 ```javascript
 // ❌ Manual dependency tracking
 let dependencies = new Set();
@@ -334,6 +345,7 @@ const total = new Signal.Computed(() => {
 ```
 
 ### 3. **Don't Over-Engineer State**
+
 ```javascript
 // ❌ Complex nested state objects
 const appState = new Signal.State({
@@ -389,11 +401,13 @@ describe('User Profile', () => {
 ## Performance Considerations
 
 ### 1. **Signals are Efficient**
+
 - Only recompute when dependencies actually change
 - Automatic memoization prevents redundant calculations
 - Batched updates reduce DOM thrashing
 
 ### 2. **Use peek() for Non-Reactive Reads**
+
 ```javascript
 const debugInfo = new Signal.Computed(() => {
   // This won't create a dependency on user
@@ -403,6 +417,7 @@ const debugInfo = new Signal.Computed(() => {
 ```
 
 ### 3. **Dispose Unused Signals**
+
 ```javascript
 // For dynamic components
 const dynamicSignal = new Signal.State(data);
@@ -414,6 +429,7 @@ dynamicSignal.dispose();
 ## Migration from Other Patterns
 
 ### From Manual Event Handling
+
 ```javascript
 // ❌ Before: Manual events
 class UserCard {
@@ -438,6 +454,7 @@ class UserCard {
 ```
 
 ### From State Management Libraries
+
 ```javascript
 // ❌ Before: Redux-like patterns
 const store = createStore(reducer);
@@ -458,6 +475,7 @@ effect(() => {
 Signals provide a powerful, intuitive way to manage reactive state in frontend applications. They eliminate the complexity of manual event handling while providing excellent performance through automatic dependency tracking and efficient updates.
 
 Key takeaways for backend developers:
+
 - **Think declaratively** rather than imperatively
 - **Trust automatic dependency tracking** instead of manual wiring
 - **Focus on data flow** rather than event handling
