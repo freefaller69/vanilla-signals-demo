@@ -12,14 +12,12 @@ class ChatComponent extends HTMLElement {
   }
 
   connectedCallback() {
-    console.log('Chat component connected');
     this.effectDisposers = [];
     this.bindEvents();
     this.bindEffects();
   }
 
   disconnectedCallback() {
-    console.log('Chat component disconnected');
     this.effectDisposers?.forEach((dispose) => dispose());
     this.effectDisposers = [];
   }
@@ -30,7 +28,6 @@ class ChatComponent extends HTMLElement {
 
     // Send message button
     sendButton.addEventListener('click', () => {
-      console.log('click listener');
       this.handleSendMessage();
     });
 
@@ -59,7 +56,6 @@ class ChatComponent extends HTMLElement {
         const participantsEl = this.shadowRoot.querySelector('#chatParticipants');
 
         if (!titleEl || !participantsEl) {
-          console.log('Chat: header elements not found');
           return;
         }
 
@@ -80,12 +76,6 @@ class ChatComponent extends HTMLElement {
     this.effectDisposers.push(
       effect(() => {
         const thread = activeThread.get();
-        console.log(
-          'Chat: messages effect running - thread:',
-          thread?.name || 'null',
-          'messages:',
-          thread?.messages?.length || 0
-        );
         const container = this.shadowRoot.querySelector('#messagesContainer');
         if (!container) return;
 
@@ -182,7 +172,6 @@ class ChatComponent extends HTMLElement {
 
         // Only update DOM if signal was cleared (empty) and DOM still has content
         if (messageInputEl && signalValue === '' && messageInputEl.value !== '') {
-          console.log('Clearing input element to match signal');
           messageInputEl.value = '';
           this.autoResizeTextarea(messageInputEl);
         }

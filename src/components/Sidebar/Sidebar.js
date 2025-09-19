@@ -20,14 +20,12 @@ class SidebarComponent extends HTMLElement {
   }
 
   connectedCallback() {
-    console.log('Sidebar component connected');
     this.effectDisposers = [];
     this.bindEvents();
     this.bindEffects();
   }
 
   disconnectedCallback() {
-    console.log('Sidebar component disconnected');
     this.effectDisposers?.forEach((dispose) => dispose());
     this.effectDisposers = [];
   }

@@ -83,10 +83,8 @@ export const messageInput = new Signal.State('');
 export const activeThread = new Signal.Computed(() => {
   const threadId = activeThreadId.get();
   const allThreads = threads.get();
-  console.log('activeThread computed - threadId:', threadId, 'threads count:', allThreads.length);
   if (!threadId) return null;
   const found = allThreads.find((t) => t.id === threadId);
-  console.log('activeThread computed - found thread:', found?.name || 'null');
   return found || null;
 });
 
@@ -119,11 +117,8 @@ export const threadStats = new Signal.Computed(() => {
 
 // ACTIONS - State mutations
 export const selectThread = (threadId) => {
-  console.log('selectThread called with threadId:', threadId);
   batch(() => {
-    console.log('Setting activeThreadId to:', threadId);
     activeThreadId.set(threadId);
-    console.log('activeThreadId is now:', activeThreadId.get());
 
     // Mark messages as read
     const currentThreads = threads.get();
@@ -148,7 +143,6 @@ export const selectThread = (threadId) => {
 };
 
 export const sendMessage = (content) => {
-  console.log('sendMessage: content');
   const threadId = activeThreadId.get();
   if (!threadId || !content.trim()) return;
 
