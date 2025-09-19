@@ -83,8 +83,12 @@ class SignalSystem {
       dep._subscribers.delete(subscriber);
 
       // Check if signal has no more watchers and trigger unwatched callback
-      if (dep._subscribers.size === 0 && dep._unwatchedCallbacks && dep._unwatchedCallbacks.size > 0) {
-        dep._unwatchedCallbacks.forEach(callback => {
+      if (
+        dep._subscribers.size === 0 &&
+        dep._unwatchedCallbacks &&
+        dep._unwatchedCallbacks.size > 0
+      ) {
+        dep._unwatchedCallbacks.forEach((callback) => {
           try {
             callback.call(dep);
           } catch (err) {
@@ -132,7 +136,7 @@ class Signal {
         this._subscribers.add(defaultSystem.currentComputation);
         defaultSystem.currentComputation.dependencies.add(this);
 
-        this._watchedCallbacks.forEach(callback => {
+        this._watchedCallbacks.forEach((callback) => {
           try {
             callback.call(this);
           } catch (err) {
@@ -155,7 +159,7 @@ class Signal {
     peek() {
       return this._value;
     }
-  }
+  };
 
   static Computed = class Computed extends Signal {
     constructor(callback, options = {}) {
@@ -184,7 +188,7 @@ class Signal {
         this._subscribers.add(defaultSystem.currentComputation);
         defaultSystem.currentComputation.dependencies.add(this);
 
-        this._watchedCallbacks.forEach(callback => {
+        this._watchedCallbacks.forEach((callback) => {
           try {
             callback.call(this);
           } catch (err) {
@@ -223,11 +227,15 @@ class Signal {
       defaultSystem.computationDepth++;
       if (defaultSystem.computationDepth > defaultSystem.maxComputationDepth) {
         defaultSystem.computationDepth--;
-        throw new Error(`Maximum computation depth of ${defaultSystem.maxComputationDepth} exceeded - possible infinite recursion`);
+        throw new Error(
+          `Maximum computation depth of ${defaultSystem.maxComputationDepth} exceeded - possible infinite recursion`
+        );
       }
 
       // Check for actual circular dependency by looking for this signal in the computation stack
-      const isAlreadyComputing = defaultSystem.computationStack.some(comp => comp.signal === this);
+      const isAlreadyComputing = defaultSystem.computationStack.some(
+        (comp) => comp.signal === this
+      );
       if (isAlreadyComputing) {
         defaultSystem.computationDepth--;
         throw new Error('Circular dependency detected in computed signal');
@@ -266,7 +274,7 @@ class Signal {
         defaultSystem.computationDepth--;
       }
     }
-  }
+  };
 
   static subtle = {
     watched: Symbol('Signal.subtle.watched'),
@@ -281,7 +289,7 @@ class Signal {
       }
 
       watch(...signals) {
-        signals.forEach(signal => {
+        signals.forEach((signal) => {
           if (!this._watchedSignals.has(signal)) {
             this._watchedSignals.add(signal);
 
@@ -301,7 +309,7 @@ class Signal {
       }
 
       unwatch(...signals) {
-        signals.forEach(signal => {
+        signals.forEach((signal) => {
           if (this._watchedSignals.has(signal)) {
             this._watchedSignals.delete(signal);
             this._pendingSignals.delete(signal);
@@ -313,8 +321,12 @@ class Signal {
                   signal._subscribers.delete(subscriber);
 
                   // Check if signal has no more watchers and trigger unwatched callback
-                  if (signal._subscribers.size === 0 && signal._unwatchedCallbacks && signal._unwatchedCallbacks.size > 0) {
-                    signal._unwatchedCallbacks.forEach(callback => {
+                  if (
+                    signal._subscribers.size === 0 &&
+                    signal._unwatchedCallbacks &&
+                    signal._unwatchedCallbacks.size > 0
+                  ) {
+                    signal._unwatchedCallbacks.forEach((callback) => {
                       try {
                         callback.call(signal);
                       } catch (err) {
@@ -375,16 +387,20 @@ class Signal {
 
     introspectSinks(signal) {
       if (signal._subscribers) {
-        return Array.from(signal._subscribers).map(sub => {
-          if (sub.invalidate) {
-            return defaultSystem.computationStack.find(comp => comp.invalidate === sub.invalidate);
-          }
-          return sub;
-        }).filter(Boolean);
+        return Array.from(signal._subscribers)
+          .map((sub) => {
+            if (sub.invalidate) {
+              return defaultSystem.computationStack.find(
+                (comp) => comp.invalidate === sub.invalidate
+              );
+            }
+            return sub;
+          })
+          .filter(Boolean);
       }
       return [];
-    }
-  }
+    },
+  };
 }
 
 function batch(fn) {
@@ -423,7 +439,7 @@ function effect(fn) {
     const prevComputation = defaultSystem.currentComputation;
     const computation = {
       dependencies,
-      invalidate: () => {} // Effects don't need invalidation
+      invalidate: () => {}, // Effects don't need invalidation
     };
     defaultSystem.currentComputation = computation;
 

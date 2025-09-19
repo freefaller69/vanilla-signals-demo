@@ -28,7 +28,7 @@ class SidebarComponent extends HTMLElement {
 
   disconnectedCallback() {
     console.log('Sidebar component disconnected');
-    this.effectDisposers?.forEach(dispose => dispose());
+    this.effectDisposers?.forEach((dispose) => dispose());
     this.effectDisposers = [];
   }
 
@@ -54,42 +54,49 @@ class SidebarComponent extends HTMLElement {
 
   bindEffects() {
     // Update total threads count
-    this.effectDisposers.push(effect(() => {
-      const totalThreadsEl = this.shadowRoot.querySelector('#totalThreads');
-      if (totalThreadsEl) {
-        totalThreadsEl.textContent = totalThreadCount.get();
-      }
-    }));
+    this.effectDisposers.push(
+      effect(() => {
+        const totalThreadsEl = this.shadowRoot.querySelector('#totalThreads');
+        if (totalThreadsEl) {
+          totalThreadsEl.textContent = totalThreadCount.get();
+        }
+      })
+    );
 
     // Update total messages count
-    this.effectDisposers.push(effect(() => {
-      const totalMessagesEl = this.shadowRoot.querySelector('#totalMessages');
-      if (totalMessagesEl) {
-        totalMessagesEl.textContent = totalMessageCount.get();
-      }
-    }));
+    this.effectDisposers.push(
+      effect(() => {
+        const totalMessagesEl = this.shadowRoot.querySelector('#totalMessages');
+        if (totalMessagesEl) {
+          totalMessagesEl.textContent = totalMessageCount.get();
+        }
+      })
+    );
 
     // Update unread count
-    this.effectDisposers.push(effect(() => {
-      const unreadCountEl = this.shadowRoot.querySelector('#unreadCount');
-      if (unreadCountEl) {
-        const count = unreadCount.get();
-        unreadCountEl.textContent = count;
-        unreadCountEl.style.display = count > 0 ? 'inline' : 'none';
-      }
-    }));
+    this.effectDisposers.push(
+      effect(() => {
+        const unreadCountEl = this.shadowRoot.querySelector('#unreadCount');
+        if (unreadCountEl) {
+          const count = unreadCount.get();
+          unreadCountEl.textContent = count;
+          unreadCountEl.style.display = count > 0 ? 'inline' : 'none';
+        }
+      })
+    );
 
     // Update thread list
-    this.effectDisposers.push(effect(() => {
-      const threadListEl = this.shadowRoot.querySelector('#threadList');
-      if (!threadListEl) return;
+    this.effectDisposers.push(
+      effect(() => {
+        const threadListEl = this.shadowRoot.querySelector('#threadList');
+        if (!threadListEl) return;
 
-      const stats = threadStats.get();
-      const activeId = activeThreadId.get();
+        const stats = threadStats.get();
+        const activeId = activeThreadId.get();
 
-      threadListEl.innerHTML = stats
-        .map(
-          (thread) => `
+        threadListEl.innerHTML = stats
+          .map(
+            (thread) => `
         <div class="thread-item ${thread.id === activeId ? 'active' : ''}" data-thread-id="${thread.id}">
           <div class="thread-name">
             ${thread.name}
@@ -100,9 +107,10 @@ class SidebarComponent extends HTMLElement {
           </div>
         </div>
       `
-        )
-        .join('');
-    }));
+          )
+          .join('');
+      })
+    );
   }
 }
 

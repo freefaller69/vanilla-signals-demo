@@ -20,7 +20,7 @@ class ChatComponent extends HTMLElement {
 
   disconnectedCallback() {
     console.log('Chat component disconnected');
-    this.effectDisposers?.forEach(dispose => dispose());
+    this.effectDisposers?.forEach((dispose) => dispose());
     this.effectDisposers = [];
   }
 
@@ -52,134 +52,142 @@ class ChatComponent extends HTMLElement {
   }
 
   bindEffects() {
-    this.effectDisposers.push(effect(() => {
-      const thread = activeThread.get();
-      const titleEl = this.shadowRoot.querySelector('#chatTitle');
-      const participantsEl = this.shadowRoot.querySelector('#chatParticipants');
+    this.effectDisposers.push(
+      effect(() => {
+        const thread = activeThread.get();
+        const titleEl = this.shadowRoot.querySelector('#chatTitle');
+        const participantsEl = this.shadowRoot.querySelector('#chatParticipants');
 
-      if (!titleEl || !participantsEl) {
-        console.log('Chat: header elements not found');
-        return;
-      }
+        if (!titleEl || !participantsEl) {
+          console.log('Chat: header elements not found');
+          return;
+        }
 
-      if (thread) {
-        titleEl.textContent = thread.name;
-        participantsEl.textContent = `${thread.participants.length} participants: ${thread.participants.join(', ')}`;
-      } else {
-        titleEl.textContent = 'Select a conversation';
-        participantsEl.textContent = 'Choose a thread from the sidebar to start messaging';
-      }
-    }));
+        if (thread) {
+          titleEl.textContent = thread.name;
+          participantsEl.textContent = `${thread.participants.length} participants: ${thread.participants.join(', ')}`;
+        } else {
+          titleEl.textContent = 'Select a conversation';
+          participantsEl.textContent = 'Choose a thread from the sidebar to start messaging';
+        }
+      })
+    );
 
     // Update messages list with efficient incremental rendering
     let lastRenderedMessages = [];
     let lastThreadId = null;
 
-    this.effectDisposers.push(effect(() => {
-      const thread = activeThread.get();
-      console.log(
-        'Chat: messages effect running - thread:',
-        thread?.name || 'null',
-        'messages:',
-        thread?.messages?.length || 0
-      );
-      const container = this.shadowRoot.querySelector('#messagesContainer');
-      if (!container) return;
+    this.effectDisposers.push(
+      effect(() => {
+        const thread = activeThread.get();
+        console.log(
+          'Chat: messages effect running - thread:',
+          thread?.name || 'null',
+          'messages:',
+          thread?.messages?.length || 0
+        );
+        const container = this.shadowRoot.querySelector('#messagesContainer');
+        if (!container) return;
 
-      // If no thread selected, show welcome message
-      if (!thread) {
-        container.innerHTML = `
+        // If no thread selected, show welcome message
+        if (!thread) {
+          container.innerHTML = `
           <div class="empty-state">
             <h3>Welcome to Signals Messaging</h3>
             <p>This demo showcases reactive state management with signals, computed values, and effects.</p>
           </div>
         `;
-        lastRenderedMessages = [];
-        lastThreadId = null;
-        return;
-      }
+          lastRenderedMessages = [];
+          lastThreadId = null;
+          return;
+        }
 
-      // If empty thread, show start conversation message
-      if (thread.messages.length === 0) {
-        container.innerHTML = `
+        // If empty thread, show start conversation message
+        if (thread.messages.length === 0) {
+          container.innerHTML = `
           <div class="empty-state">
             <h3>Start the conversation</h3>
             <p>No messages in this thread yet. Send the first message!</p>
           </div>
         `;
-        lastRenderedMessages = [];
-        lastThreadId = thread.id;
-        return;
-      }
+          lastRenderedMessages = [];
+          lastThreadId = thread.id;
+          return;
+        }
 
-      // Check if we switched threads (need full re-render)
-      const threadChanged = lastThreadId !== thread.id;
+        // Check if we switched threads (need full re-render)
+        const threadChanged = lastThreadId !== thread.id;
 
-      if (threadChanged) {
-        // Full re-render for new thread
-        container.innerHTML = thread.messages
-          .map(
-            (msg, index) => `
+        if (threadChanged) {
+          // Full re-render for new thread
+          container.innerHTML = thread.messages
+            .map(
+              (msg, index) => `
           <div class="message ${msg.author === 'You' ? 'own' : ''}" style="animation-delay: ${index * 0.05}s">
             <div class="message-author">${msg.author}</div>
             <div class="message-content">${this.escapeHtml(msg.content)}</div>
             <div class="message-time">${new Date(msg.timestamp).toLocaleTimeString()}</div>
           </div>
         `
-          )
-          .join('');
-        lastRenderedMessages = [...thread.messages];
-        lastThreadId = thread.id;
-      } else {
-        // Incremental update - only add new messages
-        const newMessages = thread.messages.slice(lastRenderedMessages.length);
+            )
+            .join('');
+          lastRenderedMessages = [...thread.messages];
+          lastThreadId = thread.id;
+        } else {
+          // Incremental update - only add new messages
+          const newMessages = thread.messages.slice(lastRenderedMessages.length);
 
-        if (newMessages.length > 0) {
-          const newMessagesHtml = newMessages
-            .map(
-              (msg, index) => `
+          if (newMessages.length > 0) {
+            const newMessagesHtml = newMessages
+              .map(
+                (msg, index) => `
             <div class="message ${msg.author === 'You' ? 'own' : ''}" style="animation-delay: ${(lastRenderedMessages.length + index) * 0.05}s">
               <div class="message-author">${msg.author}</div>
               <div class="message-content">${this.escapeHtml(msg.content)}</div>
               <div class="message-time">${new Date(msg.timestamp).toLocaleTimeString()}</div>
             </div>
           `
-            )
-            .join('');
+              )
+              .join('');
 
-          // Append new messages without touching existing ones
-          container.insertAdjacentHTML('beforeend', newMessagesHtml);
-          lastRenderedMessages = [...thread.messages];
+            // Append new messages without touching existing ones
+            container.insertAdjacentHTML('beforeend', newMessagesHtml);
+            lastRenderedMessages = [...thread.messages];
+          }
         }
-      }
 
-      // Auto-scroll to bottom
-      requestAnimationFrame(() => {
-        container.scrollTop = container.scrollHeight;
-      });
-    }));
+        // Auto-scroll to bottom
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight;
+        });
+      })
+    );
 
     // Update send button state
-    this.effectDisposers.push(effect(() => {
-      const sendButton = this.shadowRoot.querySelector('#sendButton');
-      const canSend = canSendMessage.get();
-      if (sendButton) {
-        sendButton.disabled = !canSend;
-      }
-    }));
+    this.effectDisposers.push(
+      effect(() => {
+        const sendButton = this.shadowRoot.querySelector('#sendButton');
+        const canSend = canSendMessage.get();
+        if (sendButton) {
+          sendButton.disabled = !canSend;
+        }
+      })
+    );
 
     // Keep input in sync with signal (only when programmatically cleared)
-    this.effectDisposers.push(effect(() => {
-      const messageInputEl = this.shadowRoot.querySelector('#messageInput');
-      const signalValue = messageInput.get();
+    this.effectDisposers.push(
+      effect(() => {
+        const messageInputEl = this.shadowRoot.querySelector('#messageInput');
+        const signalValue = messageInput.get();
 
-      // Only update DOM if signal was cleared (empty) and DOM still has content
-      if (messageInputEl && signalValue === '' && messageInputEl.value !== '') {
-        console.log('Clearing input element to match signal');
-        messageInputEl.value = '';
-        this.autoResizeTextarea(messageInputEl);
-      }
-    }));
+        // Only update DOM if signal was cleared (empty) and DOM still has content
+        if (messageInputEl && signalValue === '' && messageInputEl.value !== '') {
+          console.log('Clearing input element to match signal');
+          messageInputEl.value = '';
+          this.autoResizeTextarea(messageInputEl);
+        }
+      })
+    );
   }
 
   handleSendMessage() {
