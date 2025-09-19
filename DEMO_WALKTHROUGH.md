@@ -26,7 +26,7 @@ Let's examine how the application's central state is structured:
 
 ```javascript
 // Core data - these are your "database tables" in memory
-const threads = signal([
+const threads = new Signal.State([
   {
     id: 1,
     name: 'General Discussion',
@@ -35,8 +35,8 @@ const threads = signal([
   // ... more threads
 ]);
 
-const activeThreadId = signal(1); // Which thread is currently selected
-const messageInput = signal(''); // Current message being typed
+const activeThreadId = new Signal.State(1); // Which thread is currently selected
+const messageInput = new Signal.State(''); // Current message being typed
 ```
 
 **Key Insight**: These are like entity models in a backend application, but they automatically notify dependents when they change.
@@ -45,17 +45,17 @@ const messageInput = signal(''); // Current message being typed
 
 ```javascript
 // These automatically recalculate when their dependencies change
-const activeThread = computed(() => {
+const activeThread = new Signal.Computed(() => {
   const allThreads = threads.get();
   const currentId = activeThreadId.get();
   return allThreads.find((thread) => thread.id === currentId);
 });
 
-const totalMessageCount = computed(() => {
+const totalMessageCount = new Signal.Computed(() => {
   return threads.get().reduce((count, thread) => count + thread.messages.length, 0);
 });
 
-const unreadCount = computed(() => {
+const unreadCount = new Signal.Computed(() => {
   // In a real app, this would track actual unread messages
   return threads.get().filter((thread) => thread.id !== activeThreadId.get()).length;
 });
@@ -470,12 +470,12 @@ class ChatApp {
 
 ```javascript
 // ✅ Signals - declarative and automatic
-const threads = signal(initialThreads);
-const activeThreadId = signal(1);
-const messageInput = signal('');
+const threads = new Signal.State(initialThreads);
+const activeThreadId = new Signal.State(1);
+const messageInput = new Signal.State('');
 
 // Computed values update automatically
-const activeThread = computed(() => threads.get().find((t) => t.id === activeThreadId.get()));
+const activeThread = new Signal.Computed(() => threads.get().find((t) => t.id === activeThreadId.get()));
 
 // UI updates automatically through effects
 effect(() => updateMessageDisplay());
@@ -503,7 +503,7 @@ The signals system includes comprehensive error handling:
 ### Catching Computation Errors
 
 ```javascript
-const riskyComputation = computed(() => {
+const riskyComputation = new Signal.Computed(() => {
   const data = someSignal.get();
   if (!data) throw new Error('No data available');
   return data.someProperty.toUpperCase();
@@ -589,13 +589,13 @@ if (savedThreads) {
 
 ```javascript
 // User presence
-const onlineUsers = signal(new Set());
-const currentUser = signal({ id: 1, name: 'You', status: 'online' });
+const onlineUsers = new Signal.State(new Set());
+const currentUser = new Signal.State({ id: 1, name: 'You', status: 'online' });
 
 // Typing indicators
-const typingUsers = signal(new Map()); // threadId -> Set of user IDs
+const typingUsers = new Signal.State(new Map()); // threadId -> Set of user IDs
 
-const typingInCurrentThread = computed(() => {
+const typingInCurrentThread = new Signal.Computed(() => {
   const currentThreadId = activeThreadId.get();
   const typing = typingUsers.get().get(currentThreadId) || new Set();
   return Array.from(typing);
