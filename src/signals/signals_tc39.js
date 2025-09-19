@@ -174,6 +174,10 @@ class Signal {
     }
 
     get() {
+      if (this._disposed) {
+        throw new Error('Cannot access disposed signal');
+      }
+
       if (defaultSystem.currentComputation) {
         this._subscribers.add(defaultSystem.currentComputation);
         defaultSystem.currentComputation.dependencies.add(this);
@@ -190,6 +194,10 @@ class Signal {
     }
 
     set(newValue) {
+      if (this._disposed) {
+        throw new Error('Cannot set value on disposed signal');
+      }
+
       const equals = this._options.equals || ((a, b) => a === b);
 
       if (!equals.call(this, this._value, newValue)) {
@@ -200,6 +208,25 @@ class Signal {
 
     peek() {
       return this._value;
+    }
+
+    dispose() {
+      // Clear all subscribers and notify them they're being disposed
+      if (this._subscribers) {
+        this._subscribers.clear();
+      }
+
+      // Clear lifecycle callbacks
+      if (this._watchedCallbacks) {
+        this._watchedCallbacks.clear();
+      }
+      if (this._unwatchedCallbacks) {
+        this._unwatchedCallbacks.clear();
+      }
+
+      // Clear value and mark as disposed
+      this._value = undefined;
+      this._disposed = true;
     }
   };
 
@@ -226,6 +253,10 @@ class Signal {
     }
 
     get() {
+      if (this._disposed) {
+        throw new Error('Cannot access disposed computed signal');
+      }
+
       if (defaultSystem.currentComputation) {
         this._subscribers.add(defaultSystem.currentComputation);
         defaultSystem.currentComputation.dependencies.add(this);
@@ -315,6 +346,30 @@ class Signal {
         this._isComputing = false;
         defaultSystem.computationDepth--;
       }
+    }
+
+    dispose() {
+      // Clean up dependencies first
+      this._dependencies.forEach((dep) => defaultSystem.removeSubscriber(dep, this));
+      this._dependencies.clear();
+
+      // Clear subscribers
+      if (this._subscribers) {
+        this._subscribers.clear();
+      }
+
+      // Clear lifecycle callbacks
+      if (this._watchedCallbacks) {
+        this._watchedCallbacks.clear();
+      }
+      if (this._unwatchedCallbacks) {
+        this._unwatchedCallbacks.clear();
+      }
+
+      // Clear computation state
+      this._callback = null;
+      this._cachedValue = undefined;
+      this._disposed = true;
     }
   };
 
