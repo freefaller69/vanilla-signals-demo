@@ -120,145 +120,252 @@ function sendMessage() {
 
 ## Component Architecture
 
-### Main Content Component (`src/components/MainContent/MainContent.js`)
+The demo application uses a clean three-component architecture that demonstrates separation of concerns and reactive patterns:
 
-This component shows how to build reactive UI components:
+### Architecture Overview
+
+```
+src/components/
+├── MainContent/         # Root container component
+│   ├── MainContent.js   # Simple container with no reactive logic
+│   ├── MainContent.html # Layout template
+│   └── MainContent.css  # Global layout styles
+├── Chat/                # Message display and input handling
+│   ├── Chat.js          # Main reactive message logic
+│   ├── Chat.html        # Chat interface template
+│   └── Chat.css         # Chat-specific styles
+└── Sidebar/             # Thread navigation and statistics
+    ├── Sidebar.js       # Thread list and stats reactive logic
+    ├── Sidebar.html     # Sidebar template
+    └── Sidebar.css      # Sidebar styles
+```
+
+### Component Pattern: HTML/CSS Imports + setupComponent
+
+All components follow a consistent pattern using external template files:
 
 ```javascript
+// Standard component imports
+import componentHtml from './Component.html?raw';
+import componentStyles from './Component.css?inline';
+import { setupComponent } from '../../utilities/createComponent.js';
+
+class MyComponent extends HTMLElement {
+  constructor() {
+    super();
+    const shadowRoot = this.attachShadow({ mode: 'open' });
+    setupComponent(shadowRoot, componentStyles, componentHtml);
+  }
+}
+```
+
+**Benefits of this pattern:**
+- **Separation of concerns** - Logic, styles, and markup in separate files
+- **Shadow DOM encapsulation** - Styles don't leak between components
+- **Template reusability** - HTML can be edited without touching JavaScript
+- **Build-time optimization** - Vite handles the ?raw and ?inline imports
+
+### MainContent Component (`src/components/MainContent/MainContent.js`)
+
+The root component serves as a simple container:
+
+```javascript
+import mainHtml from './MainContent.html?raw';
+import mainStyles from './MainContent.css?inline';
+import { setupComponent } from '../../utilities/createComponent.js';
+import '../Chat/Chat.js';
+import '../Sidebar/Sidebar.js';
+import { startRandomMovieQuotes } from '../../store/messageStore.js';
+
 class MainContent extends HTMLElement {
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
-    this.effectCleanups = []; // Track effects for cleanup
+    const shadowRoot = this.attachShadow({ mode: 'open' });
+    setupComponent(shadowRoot, mainStyles, mainHtml);
   }
 
   connectedCallback() {
-    this.render();
-    this.setupEffects();
+    startRandomMovieQuotes(); // Begins demo content generation
+  }
+}
+
+customElements.define('main-content', MainContent);
+```
+
+**Key characteristics:**
+- **No reactive logic** - Just imports and registers child components
+- **Template-driven layout** - HTML file defines the overall structure
+- **Initialization** - Starts background processes when mounted
+
+### Chat Component (`src/components/Chat/Chat.js`)
+
+Contains the core message display and input reactive logic:
+
+```javascript
+class ChatComponent extends HTMLElement {
+  constructor() {
+    super();
+    const shadowRoot = this.attachShadow({ mode: 'open' });
+    setupComponent(shadowRoot, chatStyles, chatHtml);
   }
 
-  setupEffects() {
-    // Effect 1: Update thread display when active thread changes
-    this.effectCleanups.push(
+  connectedCallback() {
+    this.effectDisposers = []; // Track effects for cleanup
+    this.bindEvents();         // Set up DOM event listeners
+    this.bindEffects();        // Set up reactive effects
+  }
+
+  bindEffects() {
+    // Effect 1: Update chat header when active thread changes
+    this.effectDisposers.push(
       effect(() => {
         const thread = activeThread.get();
+        const titleEl = this.shadowRoot.querySelector('#chatTitle');
+        const participantsEl = this.shadowRoot.querySelector('#chatParticipants');
+
         if (thread) {
-          this.updateThreadDisplay(thread);
+          titleEl.textContent = thread.name;
+          participantsEl.textContent = `${thread.participants.length} participants: ${thread.participants.join(', ')}`;
+        } else {
+          titleEl.textContent = 'Select a conversation';
+          participantsEl.textContent = 'Choose a thread from the sidebar to start messaging';
         }
       })
     );
 
-    // Effect 2: Update message input field when input signal changes
-    this.effectCleanups.push(
+    // Effect 2: Render messages with efficient incremental updates
+    let lastRenderedMessages = [];
+    let lastThreadId = null;
+
+    this.effectDisposers.push(
       effect(() => {
-        const input = this.shadowRoot.querySelector('#message-input');
-        if (input) {
-          input.value = messageInput.get();
+        const thread = activeThread.get();
+        const container = this.shadowRoot.querySelector('#messagesContainer');
+
+        // Handle thread switching with full re-render
+        const threadChanged = lastThreadId !== thread?.id;
+
+        if (threadChanged) {
+          // Full re-render for new thread
+          container.innerHTML = thread?.messages
+            .map((msg, index) => `
+              <div class="message ${msg.author === 'You' ? 'own' : ''}"
+                   style="animation-delay: ${index * 0.05}s">
+                <div class="message-author">${msg.author}</div>
+                <div class="message-content">${this.escapeHtml(msg.content)}</div>
+                <div class="message-time">${new Date(msg.timestamp).toLocaleTimeString()}</div>
+              </div>
+            `).join('') || '';
+          lastRenderedMessages = [...(thread?.messages || [])];
+          lastThreadId = thread?.id;
+        } else if (thread) {
+          // Incremental update - only add new messages
+          const newMessages = thread.messages.slice(lastRenderedMessages.length);
+          if (newMessages.length > 0) {
+            const newMessagesHtml = newMessages.map(/* render new messages */).join('');
+            container.insertAdjacentHTML('beforeend', newMessagesHtml);
+            lastRenderedMessages = [...thread.messages];
+          }
         }
       })
     );
 
-    // Effect 3: Update send button state based on input validity
-    this.effectCleanups.push(
+    // Effect 3: Update send button state
+    this.effectDisposers.push(
       effect(() => {
-        const button = this.shadowRoot.querySelector('#send-button');
+        const sendButton = this.shadowRoot.querySelector('#sendButton');
         const canSend = canSendMessage.get();
-        if (button) {
-          button.disabled = !canSend;
+        if (sendButton) {
+          sendButton.disabled = !canSend;
         }
       })
     );
-  }
-
-  updateThreadDisplay(thread) {
-    const container = this.shadowRoot.querySelector('#messages-container');
-    if (!container) return;
-
-    // Render messages
-    container.innerHTML = thread.messages
-      .map(
-        (msg) => `
-        <div class="message">
-          <div class="message-header">
-            <span class="sender">${msg.sender}</span>
-            <span class="timestamp">${msg.timestamp.toLocaleTimeString()}</span>
-          </div>
-          <div class="message-text">${msg.text}</div>
-        </div>
-      `
-      )
-      .join('');
   }
 
   disconnectedCallback() {
     // CRITICAL: Clean up effects when component is removed
-    this.effectCleanups.forEach((cleanup) => cleanup());
+    this.effectDisposers?.forEach((dispose) => dispose());
+    this.effectDisposers = [];
   }
 }
 ```
-
-**Key Patterns**:
-
-1. **Effects for UI Updates**: Each effect handles a specific UI concern
-2. **Automatic Reactivity**: No manual event listeners for state changes
-3. **Proper Cleanup**: Effects are disposed when component unmounts
-4. **Separation of Concerns**: Rendering logic separated from state management
 
 ### Sidebar Component (`src/components/Sidebar/Sidebar.js`)
 
-Shows how multiple components can react to the same state:
+Handles thread navigation and statistics display:
 
 ```javascript
-class Sidebar extends HTMLElement {
+class SidebarComponent extends HTMLElement {
   connectedCallback() {
-    this.render();
-    this.setupEffects();
+    this.effectDisposers = [];
+    this.bindEvents();    // Set up click handlers
+    this.bindEffects();   // Set up reactive effects
   }
 
-  setupEffects() {
-    // Effect 1: Update thread list when threads change
-    this.effectCleanups.push(
-      effect(() => {
-        const allThreads = threads.get();
-        const current = activeThreadId.get();
-        this.updateThreadList(allThreads, current);
-      })
-    );
+  bindEvents() {
+    // New thread button
+    const newThreadBtn = this.shadowRoot.querySelector('#newThreadBtn');
+    newThreadBtn?.addEventListener('click', () => {
+      createNewThread();
+    });
 
-    // Effect 2: Update stats display
-    this.effectCleanups.push(
-      effect(() => {
-        const stats = threadStats.get();
-        this.updateStats(stats);
-      })
-    );
-  }
-
-  updateThreadList(threads, activeId) {
-    const container = this.shadowRoot.querySelector('#threads-list');
-    container.innerHTML = threads
-      .map(
-        (thread) => `
-        <div class="thread-item ${thread.id === activeId ? 'active' : ''}"
-             data-thread-id="${thread.id}">
-          <div class="thread-name">${thread.name}</div>
-          <div class="message-count">${thread.messages.length} messages</div>
-        </div>
-      `
-      )
-      .join('');
-
-    // Set up click handlers
-    container.addEventListener('click', (e) => {
+    // Thread selection (event delegation)
+    const threadList = this.shadowRoot.querySelector('#threadList');
+    threadList.addEventListener('click', (e) => {
       const threadItem = e.target.closest('.thread-item');
       if (threadItem) {
         const threadId = parseInt(threadItem.dataset.threadId);
-        selectThread(threadId); // This updates the signal, triggering all effects
+        selectThread(threadId); // Updates signal, triggers all dependent effects
       }
     });
   }
+
+  bindEffects() {
+    // Effect 1: Update statistics
+    this.effectDisposers.push(
+      effect(() => {
+        const totalThreadsEl = this.shadowRoot.querySelector('#totalThreads');
+        if (totalThreadsEl) {
+          totalThreadsEl.textContent = totalThreadCount.get();
+        }
+      })
+    );
+
+    // Effect 2: Update thread list with active highlighting
+    this.effectDisposers.push(
+      effect(() => {
+        const threadListEl = this.shadowRoot.querySelector('#threadList');
+        const stats = threadStats.get();
+        const activeId = activeThreadId.get();
+
+        threadListEl.innerHTML = stats
+          .map((thread) => `
+            <div class="thread-item ${thread.id === activeId ? 'active' : ''}"
+                 data-thread-id="${thread.id}">
+              <div class="thread-name">
+                ${thread.name}
+                ${thread.unreadCount > 0 ? `<span class="unread-badge">${thread.unreadCount}</span>` : ''}
+              </div>
+              <div class="thread-preview">
+                ${thread.lastMessage ? thread.lastMessage.content : 'No messages yet'}
+              </div>
+            </div>
+          `).join('');
+      })
+    );
+  }
 }
 ```
+
+**Key Patterns Used:**
+
+1. **Template Separation**: HTML/CSS imported as external files using Vite's ?raw/?inline
+2. **setupComponent Utility**: Consistent Shadow DOM + template application
+3. **effectDisposers Array**: Proper cleanup tracking for all reactive effects
+4. **bindEvents/bindEffects Separation**: Clear distinction between DOM events and reactive effects
+5. **Incremental Rendering**: Chat optimizes message rendering for performance
+6. **Event Delegation**: Sidebar uses delegation for dynamic thread list clicks
+7. **Null Safety**: All effects handle missing elements gracefully
 
 ## Understanding the Data Flow
 
