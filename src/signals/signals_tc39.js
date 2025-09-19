@@ -1,3 +1,38 @@
+// Centralized error handling utilities
+class ErrorHandler {
+  static safeExecute(fn, context, continueOnError = true) {
+    try {
+      return fn();
+    } catch (err) {
+      console.error(`Error in ${context}:`, err);
+      if (!continueOnError) throw err;
+    }
+  }
+
+  static withContextIsolation(setup, operation, teardown) {
+    const context = setup();
+    try {
+      return operation();
+    } finally {
+      teardown(context);
+    }
+  }
+
+  static safeForEach(collection, fn, context) {
+    collection.forEach((item) => {
+      this.safeExecute(() => fn(item), `${context} iteration`);
+    });
+  }
+
+  static withCleanup(operation, cleanup) {
+    try {
+      return operation();
+    } finally {
+      if (cleanup) cleanup();
+    }
+  }
+}
+
 class SignalSystem {
   constructor() {
     this.currentComputation = null;
@@ -29,57 +64,52 @@ class SignalSystem {
   flushUpdates() {
     if (this.isUpdating) return;
 
-    this.isUpdating = true;
-    try {
-      let flushCount = 0;
-      const maxFlushes = 1000;
+    ErrorHandler.withCleanup(
+      () => {
+        this.isUpdating = true;
+        let flushCount = 0;
+        const maxFlushes = 1000;
 
-      while (this.updateQueue.size > 0 && flushCount < maxFlushes) {
-        const updates = Array.from(this.updateQueue);
-        this.updateQueue.clear();
-        flushCount++;
+        while (this.updateQueue.size > 0 && flushCount < maxFlushes) {
+          const updates = Array.from(this.updateQueue);
+          this.updateQueue.clear();
+          flushCount++;
 
-        updates.forEach((update) => {
-          try {
-            update();
-          } catch (err) {
-            console.error('Error in signal update:', err);
-          }
-        });
+          ErrorHandler.safeForEach(updates, (update) => update(), 'signal update');
+        }
+
+        if (flushCount >= maxFlushes) {
+          console.error('Maximum flush iterations reached - possible infinite update loop');
+          this.updateQueue.clear();
+        }
+      },
+      () => {
+        this.isUpdating = false;
       }
-
-      if (flushCount >= maxFlushes) {
-        console.error('Maximum flush iterations reached - possible infinite update loop');
-        this.updateQueue.clear();
-      }
-    } finally {
-      this.isUpdating = false;
-    }
+    );
   }
 
   safeExecute(fn) {
-    try {
-      return fn();
-    } catch (err) {
-      console.error('Error in signal computation:', err);
-      throw err;
-    }
+    return ErrorHandler.safeExecute(fn, 'signal computation', false);
   }
 
   batch(fn) {
     const wasUpdating = this.isUpdating;
-    this.isUpdating = true;
 
-    try {
-      const result = fn();
-      if (!wasUpdating) {
-        this.isUpdating = false;
-        this.flushUpdates();
+    return ErrorHandler.withCleanup(
+      () => {
+        this.isUpdating = true;
+        const result = fn();
+        if (!wasUpdating) {
+          this.isUpdating = false;
+          this.flushUpdates();
+        }
+        return result;
+      },
+      () => {
+        this.isUpdating = wasUpdating;
       }
-      return result;
-    } finally {
-      this.isUpdating = wasUpdating;
-    }
+    );
   }
 
   removeSubscriber(dep, subscriber) {
@@ -112,19 +142,24 @@ class SignalSystem {
     this.watcherNotificationQueue.clear();
     this.isWatcherNotificationScheduled = false;
 
-    watchers.forEach((watcher) => {
-      if (watcher._pendingSignals.size > 0 && !watcher._isNotifying) {
-        watcher._isNotifying = true;
-        try {
-          watcher._notify();
-        } catch (err) {
-          console.error('Error in watcher notification:', err);
-        } finally {
-          watcher._pendingSignals.clear();
-          watcher._isNotifying = false;
+    ErrorHandler.safeForEach(
+      watchers,
+      (watcher) => {
+        if (watcher._pendingSignals.size > 0 && !watcher._isNotifying) {
+          ErrorHandler.withCleanup(
+            () => {
+              watcher._isNotifying = true;
+              watcher._notify();
+            },
+            () => {
+              watcher._pendingSignals.clear();
+              watcher._isNotifying = false;
+            }
+          );
         }
-      }
-    });
+      },
+      'watcher notification'
+    );
   }
 }
 
@@ -179,11 +214,7 @@ class Signal {
   }
 
   _safeExecuteCallback(callback, context) {
-    try {
-      callback.call(this);
-    } catch (err) {
-      console.error(`Error in ${context}:`, err);
-    }
+    ErrorHandler.safeExecute(() => callback.call(this), context);
   }
 
   static _triggerUnwatchedCallbacks(signal) {
@@ -192,23 +223,17 @@ class Signal {
       signal._unwatchedCallbacks &&
       signal._unwatchedCallbacks.size > 0
     ) {
-      signal._unwatchedCallbacks.forEach((callback) => {
-        try {
-          callback.call(signal);
-        } catch (err) {
-          console.error('Error in unwatched callback:', err);
-        }
-      });
+      ErrorHandler.safeForEach(
+        signal._unwatchedCallbacks,
+        (callback) => callback.call(signal),
+        'unwatched callback'
+      );
     }
   }
 
   static _safeCleanup(cleanupFn, context) {
     if (cleanupFn && typeof cleanupFn === 'function') {
-      try {
-        cleanupFn();
-      } catch (err) {
-        console.error(`Error in ${context}:`, err);
-      }
+      ErrorHandler.safeExecute(cleanupFn, context);
     }
   }
 
@@ -283,14 +308,20 @@ class Signal {
 
     peek() {
       if (this._isStale && !this._isComputing) {
-        const prevComputation = defaultSystem.currentComputation;
-        defaultSystem.currentComputation = null;
-        try {
-          this._cachedValue = defaultSystem.safeExecute(() => this._callback.call(this));
-          this._isStale = false;
-        } finally {
-          defaultSystem.currentComputation = prevComputation;
-        }
+        ErrorHandler.withContextIsolation(
+          () => {
+            const prev = defaultSystem.currentComputation;
+            defaultSystem.currentComputation = null;
+            return prev;
+          },
+          () => {
+            this._cachedValue = defaultSystem.safeExecute(() => this._callback.call(this));
+            this._isStale = false;
+          },
+          (prevComputation) => {
+            defaultSystem.currentComputation = prevComputation;
+          }
+        );
       }
       return this._cachedValue;
     }
@@ -335,21 +366,24 @@ class Signal {
       defaultSystem.currentComputation = computation;
       defaultSystem.computationStack.push(computation);
 
-      try {
-        this._cachedValue = defaultSystem.safeExecute(() => this._callback.call(this));
-        this._isStale = false;
+      ErrorHandler.withCleanup(
+        () => {
+          this._cachedValue = defaultSystem.safeExecute(() => this._callback.call(this));
+          this._isStale = false;
 
-        oldDependencies.forEach((dep) => {
-          if (!this._dependencies.has(dep)) {
-            defaultSystem.removeSubscriber(dep, computation);
-          }
-        });
-      } finally {
-        defaultSystem.currentComputation = prevComputation;
-        defaultSystem.computationStack.pop();
-        this._isComputing = false;
-        defaultSystem.computationDepth--;
-      }
+          oldDependencies.forEach((dep) => {
+            if (!this._dependencies.has(dep)) {
+              defaultSystem.removeSubscriber(dep, computation);
+            }
+          });
+        },
+        () => {
+          defaultSystem.currentComputation = prevComputation;
+          defaultSystem.computationStack.pop();
+          this._isComputing = false;
+          defaultSystem.computationDepth--;
+        }
+      );
     }
 
     dispose() {
@@ -424,13 +458,17 @@ class Signal {
     },
 
     untrack(callback) {
-      const prevComputation = defaultSystem.currentComputation;
-      defaultSystem.currentComputation = null;
-      try {
-        return callback();
-      } finally {
-        defaultSystem.currentComputation = prevComputation;
-      }
+      return ErrorHandler.withContextIsolation(
+        () => {
+          const prev = defaultSystem.currentComputation;
+          defaultSystem.currentComputation = null;
+          return prev;
+        },
+        callback,
+        (prevComputation) => {
+          defaultSystem.currentComputation = prevComputation;
+        }
+      );
     },
 
     currentComputed() {
@@ -496,21 +534,24 @@ function effect(fn) {
     };
     defaultSystem.currentComputation = computation;
 
-    try {
-      const result = fn();
-      if (typeof result === 'function') {
-        cleanup = result;
-      }
+    ErrorHandler.withCleanup(
+      () => {
+        ErrorHandler.safeExecute(() => {
+          const result = fn();
+          if (typeof result === 'function') {
+            cleanup = result;
+          }
+        }, 'effect');
 
-      // Watch all accessed signals
-      if (dependencies.size > 0) {
-        watcher.watch(...Array.from(dependencies));
+        // Watch all accessed signals
+        if (dependencies.size > 0) {
+          watcher.watch(...Array.from(dependencies));
+        }
+      },
+      () => {
+        defaultSystem.currentComputation = prevComputation;
       }
-    } catch (err) {
-      console.error('Error in effect:', err);
-    } finally {
-      defaultSystem.currentComputation = prevComputation;
-    }
+    );
   }
 
   // Initial run
