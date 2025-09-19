@@ -78,7 +78,12 @@ class SidebarComponent extends HTMLElement {
         if (unreadCountEl) {
           const count = unreadCount.get();
           unreadCountEl.textContent = count;
-          unreadCountEl.style.display = count > 0 ? 'inline' : 'none';
+
+          // Hide the entire stat container when no unread messages
+          const statContainer = unreadCountEl.closest('.stat');
+          if (statContainer) {
+            statContainer.style.display = count > 0 ? 'flex' : 'none';
+          }
         }
       })
     );
