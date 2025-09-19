@@ -279,6 +279,295 @@ class UserComponent {
 }
 ```
 
+## Signal.subtle.Watcher - Manual Observation for Production Use Cases
+
+### Understanding Watchers vs Effects
+
+The demo application uses `effect()` functions for all reactive behaviors, but signals also provide `Signal.subtle.Watcher` for more sophisticated observation patterns. Understanding when to use each is crucial for production applications.
+
+#### Why This Demo Uses Effects
+
+Our chat application uses effects because they provide:
+
+1. **Automatic dependency tracking** - Effects automatically track which signals they read
+2. **Immediate execution** - Effects run synchronously when dependencies change
+3. **Simple cleanup** - Each effect returns a cleanup function
+4. **Direct DOM updates** - Perfect for updating UI elements directly
+
+```javascript
+// This demo's approach - simple and direct
+effect(() => {
+  document.getElementById('user-name').textContent = displayName.get();
+});
+
+effect(() => {
+  document.getElementById('cart-total').textContent = formattedTotal.get();
+});
+```
+
+#### When to Use Signal.subtle.Watcher in Production
+
+Watchers are more powerful for advanced scenarios where you need:
+
+**Real-Time Communication (WebSockets/SignalR)**: Instead of sending individual updates for each signal change, watchers can batch multiple state changes into single WebSocket messages, reducing network traffic and improving performance - especially important for high-frequency updates in real-time applications.
+
+**1. Batch Processing of Multiple Signal Changes**
+
+```javascript
+// Analytics tracking - batch multiple user actions
+const analyticsWatcher = new Signal.subtle.Watcher(() => {
+  const changedSignals = analyticsWatcher.getPending();
+
+  // Process all changes together
+  const events = changedSignals.map(signal => ({
+    type: getSignalType(signal),
+    timestamp: Date.now(),
+    value: signal.peek() // Don't create dependencies
+  }));
+
+  // Single analytics call instead of multiple
+  analytics.track('user_interactions', { events });
+});
+
+// Watch user interaction signals
+analyticsWatcher.watch(buttonClicks, pageViews, formSubmissions);
+```
+
+**2. Performance Monitoring and Debugging**
+
+```javascript
+// Performance monitoring system
+class SignalPerformanceMonitor {
+  constructor() {
+    this.metrics = new Map();
+    this.watcher = new Signal.subtle.Watcher(() => {
+      this.recordMetrics();
+    });
+  }
+
+  monitorSignals(...signals) {
+    signals.forEach(signal => {
+      this.metrics.set(signal, {
+        changeCount: 0,
+        lastChanged: Date.now(),
+        averageInterval: 0
+      });
+    });
+
+    this.watcher.watch(...signals);
+  }
+
+  recordMetrics() {
+    const changed = this.watcher.getPending();
+    const now = Date.now();
+
+    changed.forEach(signal => {
+      const metric = this.metrics.get(signal);
+      if (metric) {
+        const interval = now - metric.lastChanged;
+        metric.changeCount++;
+        metric.averageInterval = (metric.averageInterval + interval) / 2;
+        metric.lastChanged = now;
+
+        // Alert on high-frequency changes
+        if (interval < 100) {
+          console.warn('High frequency updates detected:', signal);
+        }
+      }
+    });
+  }
+}
+
+// Usage
+const monitor = new SignalPerformanceMonitor();
+monitor.monitorSignals(userState, cartItems, searchResults);
+```
+
+**3. External System Integration**
+
+```javascript
+// WebSocket sync - batch state changes before sending
+class WebSocketSync {
+  constructor(websocket) {
+    this.ws = websocket;
+    this.pendingUpdates = new Set();
+
+    this.watcher = new Signal.subtle.Watcher(() => {
+      // Debounce multiple changes into single update
+      clearTimeout(this.syncTimeout);
+      this.syncTimeout = setTimeout(() => this.syncToServer(), 100);
+    });
+  }
+
+  syncSignals(...signals) {
+    this.watcher.watch(...signals);
+  }
+
+  syncToServer() {
+    const changes = this.watcher.getPending();
+
+    // Collect all changes into single message
+    const updates = changes.map(signal => ({
+      id: signal.id,
+      value: signal.peek(), // Don't create dependencies
+      timestamp: Date.now()
+    }));
+
+    if (updates.length > 0) {
+      this.ws.send(JSON.stringify({
+        type: 'bulk_update',
+        changes: updates
+      }));
+    }
+  }
+}
+
+// Usage
+const sync = new WebSocketSync(websocket);
+sync.syncSignals(userProfile, gameState, chatMessages);
+```
+
+**4. Complex State Coordination**
+
+```javascript
+// Multi-step form with complex validation
+class FormOrchestrator {
+  constructor() {
+    this.validationQueue = new Set();
+
+    this.watcher = new Signal.subtle.Watcher(() => {
+      // Process all form field changes together
+      this.processValidationBatch();
+    });
+  }
+
+  watchForm(formFields) {
+    this.watcher.watch(...Object.values(formFields));
+  }
+
+  processValidationBatch() {
+    const changedFields = this.watcher.getPending();
+
+    // Group validations by dependency
+    const validationGroups = this.groupValidations(changedFields);
+
+    // Run each group in sequence to avoid conflicts
+    validationGroups.forEach(group => {
+      this.runValidationGroup(group);
+    });
+
+    // Update UI once after all validations
+    this.updateValidationUI();
+  }
+
+  groupValidations(fields) {
+    // Complex logic to determine validation order
+    // e.g., email validation before uniqueness check
+    return this.sortByDependencies(fields);
+  }
+}
+```
+
+**5. Data Persistence with Conflict Resolution**
+
+```javascript
+// Auto-save with conflict detection
+class AutoSaveManager {
+  constructor(apiClient) {
+    this.api = apiClient;
+    this.saveQueue = new Map();
+
+    this.watcher = new Signal.subtle.Watcher(() => {
+      this.processSaveQueue();
+    });
+  }
+
+  watchDocuments(...documentSignals) {
+    this.watcher.watch(...documentSignals);
+  }
+
+  processSaveQueue() {
+    const changed = this.watcher.getPending();
+
+    // Detect potential conflicts
+    const conflicts = this.detectConflicts(changed);
+
+    if (conflicts.length > 0) {
+      this.resolveConflicts(conflicts);
+    } else {
+      // Safe to save all changes
+      this.saveChanges(changed);
+    }
+  }
+
+  detectConflicts(signals) {
+    return signals.filter(signal => {
+      const lastSaved = this.saveQueue.get(signal);
+      const current = signal.peek();
+      return lastSaved && this.hasConflict(lastSaved, current);
+    });
+  }
+}
+```
+
+### Watchers vs Effects: Decision Matrix
+
+| Use Case | Use Effect | Use Watcher | Reason |
+|----------|------------|-------------|---------|
+| Direct DOM updates | ✅ | ❌ | Effects run immediately, perfect for UI |
+| Simple reactive logic | ✅ | ❌ | Effects are simpler and more direct |
+| Multiple signal batching | ❌ | ✅ | Watchers collect multiple changes |
+| External API calls | ❌ | ✅ | Batch API calls for efficiency |
+| Performance monitoring | ❌ | ✅ | Need to observe without affecting |
+| Complex coordination | ❌ | ✅ | Better control over execution timing |
+| Analytics/logging | ❌ | ✅ | Batch events for better performance |
+
+### Converting from Effects to Watchers
+
+If you need more control, here's how to convert from the demo's effect pattern:
+
+```javascript
+// Demo approach (immediate, per-signal)
+effect(() => {
+  const user = userSignal.get();
+  updateUserDisplay(user);
+});
+
+effect(() => {
+  const cart = cartSignal.get();
+  updateCartDisplay(cart);
+});
+
+// Production approach (batched, coordinated)
+const uiWatcher = new Signal.subtle.Watcher(() => {
+  const changes = uiWatcher.getPending();
+
+  // Batch DOM updates for better performance
+  const updates = changes.map(signal => {
+    if (signal === userSignal) return () => updateUserDisplay(signal.peek());
+    if (signal === cartSignal) return () => updateCartDisplay(signal.peek());
+    return null;
+  }).filter(Boolean);
+
+  // Apply all updates in a single animation frame
+  requestAnimationFrame(() => {
+    updates.forEach(update => update());
+  });
+});
+
+uiWatcher.watch(userSignal, cartSignal);
+```
+
+### Key Takeaways
+
+- **Effects are perfect for simple, immediate reactive behaviors** (like this demo)
+- **Watchers excel at complex, coordinated, or batched operations** (production scenarios)
+- **Choose effects for UI updates, watchers for system integration**
+- **Effects track dependencies automatically, watchers require manual setup**
+- **Watchers provide better performance for high-frequency changes**
+
+The demo's use of effects keeps the code simple and educational, but real production applications often benefit from watchers for advanced coordination patterns.
+
 ## Best Practices
 
 ### 1. **Keep Signals Focused**
