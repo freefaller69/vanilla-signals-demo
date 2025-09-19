@@ -1,6 +1,6 @@
 import chatHtml from './Chat.html?raw';
 import chatStyles from './Chat.css?inline';
-import { effect } from '../../signals/signals';
+import { effect } from '../../signals/signals_tc39';
 import { setupComponent } from '../../utilities/createComponent';
 import { messageInput, canSendMessage, sendMessage, activeThread } from '../../store/messageStore';
 

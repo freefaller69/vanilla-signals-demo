@@ -1,4 +1,4 @@
-import { signal, computed, batch } from '../signals/signals.js';
+import { Signal, batch } from '../signals/signals_tc39.js';
 
 // Sample data
 const initialThreads = [
@@ -75,12 +75,12 @@ const initialThreads = [
 ];
 
 // SIGNALS - Core reactive state
-export const threads = signal([...initialThreads]);
-export const activeThreadId = signal(null);
-export const messageInput = signal('');
+export const threads = new Signal.State([...initialThreads]);
+export const activeThreadId = new Signal.State(null);
+export const messageInput = new Signal.State('');
 
 // COMPUTED - Derived reactive values
-export const activeThread = computed(() => {
+export const activeThread = new Signal.Computed(() => {
   const threadId = activeThreadId.get();
   const allThreads = threads.get();
   console.log('activeThread computed - threadId:', threadId, 'threads count:', allThreads.length);
@@ -90,25 +90,25 @@ export const activeThread = computed(() => {
   return found || null;
 });
 
-export const totalMessageCount = computed(() => {
+export const totalMessageCount = new Signal.Computed(() => {
   return threads.get().reduce((total, thread) => total + thread.messages.length, 0);
 });
 
-export const unreadCount = computed(() => {
+export const unreadCount = new Signal.Computed(() => {
   return threads.get().reduce((total, thread) => {
     return total + thread.messages.filter((msg) => !msg.read).length;
   }, 0);
 });
 
-export const totalThreadCount = computed(() => threads.get().length);
+export const totalThreadCount = new Signal.Computed(() => threads.get().length);
 
-export const canSendMessage = computed(() => {
+export const canSendMessage = new Signal.Computed(() => {
   const threadId = activeThreadId.get();
   const inputValue = messageInput.get();
   return threadId !== null && inputValue.trim().length > 0;
 });
 
-export const threadStats = computed(() => {
+export const threadStats = new Signal.Computed(() => {
   return threads.get().map((thread) => ({
     ...thread,
     messageCount: thread.messages.length,

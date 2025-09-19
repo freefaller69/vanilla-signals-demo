@@ -1,7 +1,7 @@
 import sidebarHtml from './Sidebar.html?raw';
 import sidebarStyles from './Sidebar.css?inline';
 import { setupComponent } from '../../utilities/createComponent.js';
-import { effect } from '../../signals/signals';
+import { effect } from '../../signals/signals_tc39';
 import {
   totalThreadCount,
   totalMessageCount,
