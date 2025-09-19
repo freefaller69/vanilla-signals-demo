@@ -6,6 +6,10 @@ class SignalSystem {
     this.computationStack = [];
     this.computationDepth = 0;
     this.maxComputationDepth = 100;
+
+    // Shared microtask scheduler for Watcher notifications
+    this.watcherNotificationQueue = new Set();
+    this.isWatcherNotificationScheduled = false;
   }
 
   scheduleUpdate(subscribers) {
@@ -97,6 +101,44 @@ class SignalSystem {
         });
       }
     }
+  }
+
+  scheduleWatcherNotification(watcher) {
+    this.watcherNotificationQueue.add(watcher);
+
+    if (!this.isWatcherNotificationScheduled) {
+      this.isWatcherNotificationScheduled = true;
+
+      // Use a single microtask to batch all watcher notifications
+      Promise.resolve().then(() => {
+        this.flushWatcherNotifications();
+      });
+    }
+  }
+
+  flushWatcherNotifications() {
+    if (this.watcherNotificationQueue.size === 0) {
+      this.isWatcherNotificationScheduled = false;
+      return;
+    }
+
+    const watchers = Array.from(this.watcherNotificationQueue);
+    this.watcherNotificationQueue.clear();
+    this.isWatcherNotificationScheduled = false;
+
+    watchers.forEach((watcher) => {
+      if (watcher._pendingSignals.size > 0 && !watcher._isNotifying) {
+        watcher._isNotifying = true;
+        try {
+          watcher._notify();
+        } catch (err) {
+          console.error('Error in watcher notification:', err);
+        } finally {
+          watcher._pendingSignals.clear();
+          watcher._isNotifying = false;
+        }
+      }
+    });
   }
 }
 
@@ -298,7 +340,7 @@ class Signal {
               const watcherCallback = () => {
                 this._pendingSignals.add(signal);
                 if (!this._isNotifying) {
-                  this._scheduleNotify();
+                  defaultSystem.scheduleWatcherNotification(this);
                 }
               };
               watcherCallback._watcher = this;
@@ -344,23 +386,6 @@ class Signal {
 
       getPending() {
         return Array.from(this._pendingSignals);
-      }
-
-      _scheduleNotify() {
-        if (this._isNotifying) return;
-
-        // Use microtask to batch notifications
-        Promise.resolve().then(() => {
-          if (this._pendingSignals.size > 0) {
-            this._isNotifying = true;
-            try {
-              this._notify();
-            } finally {
-              this._pendingSignals.clear();
-              this._isNotifying = false;
-            }
-          }
-        });
       }
     },
 
