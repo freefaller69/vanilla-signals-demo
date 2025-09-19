@@ -21,8 +21,15 @@ class SidebarComponent extends HTMLElement {
 
   connectedCallback() {
     console.log('Sidebar component connected');
+    this.effectDisposers = [];
     this.bindEvents();
     this.bindEffects();
+  }
+
+  disconnectedCallback() {
+    console.log('Sidebar component disconnected');
+    this.effectDisposers?.forEach(dispose => dispose());
+    this.effectDisposers = [];
   }
 
   bindEvents() {
@@ -47,33 +54,33 @@ class SidebarComponent extends HTMLElement {
 
   bindEffects() {
     // Update total threads count
-    effect(() => {
+    this.effectDisposers.push(effect(() => {
       const totalThreadsEl = this.shadowRoot.querySelector('#totalThreads');
       if (totalThreadsEl) {
         totalThreadsEl.textContent = totalThreadCount.get();
       }
-    });
+    }));
 
     // Update total messages count
-    effect(() => {
+    this.effectDisposers.push(effect(() => {
       const totalMessagesEl = this.shadowRoot.querySelector('#totalMessages');
       if (totalMessagesEl) {
         totalMessagesEl.textContent = totalMessageCount.get();
       }
-    });
+    }));
 
     // Update unread count
-    effect(() => {
+    this.effectDisposers.push(effect(() => {
       const unreadCountEl = this.shadowRoot.querySelector('#unreadCount');
       if (unreadCountEl) {
         const count = unreadCount.get();
         unreadCountEl.textContent = count;
         unreadCountEl.style.display = count > 0 ? 'inline' : 'none';
       }
-    });
+    }));
 
     // Update thread list
-    effect(() => {
+    this.effectDisposers.push(effect(() => {
       const threadListEl = this.shadowRoot.querySelector('#threadList');
       if (!threadListEl) return;
 
@@ -95,7 +102,7 @@ class SidebarComponent extends HTMLElement {
       `
         )
         .join('');
-    });
+    }));
   }
 }
 

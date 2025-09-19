@@ -13,8 +13,15 @@ class ChatComponent extends HTMLElement {
 
   connectedCallback() {
     console.log('Chat component connected');
+    this.effectDisposers = [];
     this.bindEvents();
     this.bindEffects();
+  }
+
+  disconnectedCallback() {
+    console.log('Chat component disconnected');
+    this.effectDisposers?.forEach(dispose => dispose());
+    this.effectDisposers = [];
   }
 
   bindEvents() {
@@ -47,7 +54,7 @@ class ChatComponent extends HTMLElement {
   }
 
   bindEffects() {
-    effect(() => {
+    this.effectDisposers.push(effect(() => {
       const thread = activeThread.get();
       const titleEl = this.shadowRoot.querySelector('#chatTitle');
       const participantsEl = this.shadowRoot.querySelector('#chatParticipants');
@@ -64,13 +71,13 @@ class ChatComponent extends HTMLElement {
         titleEl.textContent = 'Select a conversation';
         participantsEl.textContent = 'Choose a thread from the sidebar to start messaging';
       }
-    });
+    }));
 
     // Update messages list with efficient incremental rendering
     let lastRenderedMessages = [];
     let lastThreadId = null;
 
-    effect(() => {
+    this.effectDisposers.push(effect(() => {
       const thread = activeThread.get();
       console.log(
         'Chat: messages effect running - thread:',
@@ -152,19 +159,19 @@ class ChatComponent extends HTMLElement {
       requestAnimationFrame(() => {
         container.scrollTop = container.scrollHeight;
       });
-    });
+    }));
 
     // Update send button state
-    effect(() => {
+    this.effectDisposers.push(effect(() => {
       const sendButton = this.shadowRoot.querySelector('#sendButton');
       const canSend = canSendMessage.get();
       if (sendButton) {
         sendButton.disabled = !canSend;
       }
-    });
+    }));
 
     // Keep input in sync with signal (only when programmatically cleared)
-    effect(() => {
+    this.effectDisposers.push(effect(() => {
       const messageInputEl = this.shadowRoot.querySelector('#messageInput');
       const signalValue = messageInput.get();
 
@@ -174,7 +181,7 @@ class ChatComponent extends HTMLElement {
         messageInputEl.value = '';
         this.autoResizeTextarea(messageInputEl);
       }
-    });
+    }));
   }
 
   handleSendMessage() {
