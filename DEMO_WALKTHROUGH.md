@@ -160,6 +160,7 @@ class MyComponent extends HTMLElement {
 ```
 
 **Benefits of this pattern:**
+
 - **Separation of concerns** - Logic, styles, and markup in separate files
 - **Shadow DOM encapsulation** - Styles don't leak between components
 - **Template reusability** - HTML can be edited without touching JavaScript
@@ -193,6 +194,7 @@ customElements.define('main-content', MainContent);
 ```
 
 **Key characteristics:**
+
 - **No reactive logic** - Just imports and registers child components
 - **Template-driven layout** - HTML file defines the overall structure
 - **Initialization** - Starts background processes when mounted
@@ -211,8 +213,8 @@ class ChatComponent extends HTMLElement {
 
   connectedCallback() {
     this.effectDisposers = []; // Track effects for cleanup
-    this.bindEvents();         // Set up DOM event listeners
-    this.bindEffects();        // Set up reactive effects
+    this.bindEvents(); // Set up DOM event listeners
+    this.bindEffects(); // Set up reactive effects
   }
 
   bindEffects() {
@@ -247,15 +249,19 @@ class ChatComponent extends HTMLElement {
 
         if (threadChanged) {
           // Full re-render for new thread
-          container.innerHTML = thread?.messages
-            .map((msg, index) => `
+          container.innerHTML =
+            thread?.messages
+              .map(
+                (msg, index) => `
               <div class="message ${msg.author === 'You' ? 'own' : ''}"
                    style="animation-delay: ${index * 0.05}s">
                 <div class="message-author">${msg.author}</div>
                 <div class="message-content">${this.escapeHtml(msg.content)}</div>
                 <div class="message-time">${new Date(msg.timestamp).toLocaleTimeString()}</div>
               </div>
-            `).join('') || '';
+            `
+              )
+              .join('') || '';
           lastRenderedMessages = [...(thread?.messages || [])];
           lastThreadId = thread?.id;
         } else if (thread) {
@@ -298,8 +304,8 @@ Handles thread navigation and statistics display:
 class SidebarComponent extends HTMLElement {
   connectedCallback() {
     this.effectDisposers = [];
-    this.bindEvents();    // Set up click handlers
-    this.bindEffects();   // Set up reactive effects
+    this.bindEvents(); // Set up click handlers
+    this.bindEffects(); // Set up reactive effects
   }
 
   bindEvents() {
@@ -339,7 +345,8 @@ class SidebarComponent extends HTMLElement {
         const activeId = activeThreadId.get();
 
         threadListEl.innerHTML = stats
-          .map((thread) => `
+          .map(
+            (thread) => `
             <div class="thread-item ${thread.id === activeId ? 'active' : ''}"
                  data-thread-id="${thread.id}">
               <div class="thread-name">
@@ -350,7 +357,9 @@ class SidebarComponent extends HTMLElement {
                 ${thread.lastMessage ? thread.lastMessage.content : 'No messages yet'}
               </div>
             </div>
-          `).join('');
+          `
+          )
+          .join('');
       })
     );
   }
@@ -475,7 +484,9 @@ const activeThreadId = new Signal.State(1);
 const messageInput = new Signal.State('');
 
 // Computed values update automatically
-const activeThread = new Signal.Computed(() => threads.get().find((t) => t.id === activeThreadId.get()));
+const activeThread = new Signal.Computed(() =>
+  threads.get().find((t) => t.id === activeThreadId.get())
+);
 
 // UI updates automatically through effects
 effect(() => updateMessageDisplay());

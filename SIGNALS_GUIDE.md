@@ -319,10 +319,10 @@ const analyticsWatcher = new Signal.subtle.Watcher(() => {
   const changedSignals = analyticsWatcher.getPending();
 
   // Process all changes together
-  const events = changedSignals.map(signal => ({
+  const events = changedSignals.map((signal) => ({
     type: getSignalType(signal),
     timestamp: Date.now(),
-    value: signal.peek() // Don't create dependencies
+    value: signal.peek(), // Don't create dependencies
   }));
 
   // Single analytics call instead of multiple
@@ -346,11 +346,11 @@ class SignalPerformanceMonitor {
   }
 
   monitorSignals(...signals) {
-    signals.forEach(signal => {
+    signals.forEach((signal) => {
       this.metrics.set(signal, {
         changeCount: 0,
         lastChanged: Date.now(),
-        averageInterval: 0
+        averageInterval: 0,
       });
     });
 
@@ -361,7 +361,7 @@ class SignalPerformanceMonitor {
     const changed = this.watcher.getPending();
     const now = Date.now();
 
-    changed.forEach(signal => {
+    changed.forEach((signal) => {
       const metric = this.metrics.get(signal);
       if (metric) {
         const interval = now - metric.lastChanged;
@@ -407,17 +407,19 @@ class WebSocketSync {
     const changes = this.watcher.getPending();
 
     // Collect all changes into single message
-    const updates = changes.map(signal => ({
+    const updates = changes.map((signal) => ({
       id: signal.id,
       value: signal.peek(), // Don't create dependencies
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }));
 
     if (updates.length > 0) {
-      this.ws.send(JSON.stringify({
-        type: 'bulk_update',
-        changes: updates
-      }));
+      this.ws.send(
+        JSON.stringify({
+          type: 'bulk_update',
+          changes: updates,
+        })
+      );
     }
   }
 }
@@ -452,7 +454,7 @@ class FormOrchestrator {
     const validationGroups = this.groupValidations(changedFields);
 
     // Run each group in sequence to avoid conflicts
-    validationGroups.forEach(group => {
+    validationGroups.forEach((group) => {
       this.runValidationGroup(group);
     });
 
@@ -501,7 +503,7 @@ class AutoSaveManager {
   }
 
   detectConflicts(signals) {
-    return signals.filter(signal => {
+    return signals.filter((signal) => {
       const lastSaved = this.saveQueue.get(signal);
       const current = signal.peek();
       return lastSaved && this.hasConflict(lastSaved, current);
@@ -512,15 +514,15 @@ class AutoSaveManager {
 
 ### Watchers vs Effects: Decision Matrix
 
-| Use Case | Use Effect | Use Watcher | Reason |
-|----------|------------|-------------|---------|
-| Direct DOM updates | ✅ | ❌ | Effects run immediately, perfect for UI |
-| Simple reactive logic | ✅ | ❌ | Effects are simpler and more direct |
-| Multiple signal batching | ❌ | ✅ | Watchers collect multiple changes |
-| External API calls | ❌ | ✅ | Batch API calls for efficiency |
-| Performance monitoring | ❌ | ✅ | Need to observe without affecting |
-| Complex coordination | ❌ | ✅ | Better control over execution timing |
-| Analytics/logging | ❌ | ✅ | Batch events for better performance |
+| Use Case                 | Use Effect | Use Watcher | Reason                                  |
+| ------------------------ | ---------- | ----------- | --------------------------------------- |
+| Direct DOM updates       | ✅         | ❌          | Effects run immediately, perfect for UI |
+| Simple reactive logic    | ✅         | ❌          | Effects are simpler and more direct     |
+| Multiple signal batching | ❌         | ✅          | Watchers collect multiple changes       |
+| External API calls       | ❌         | ✅          | Batch API calls for efficiency          |
+| Performance monitoring   | ❌         | ✅          | Need to observe without affecting       |
+| Complex coordination     | ❌         | ✅          | Better control over execution timing    |
+| Analytics/logging        | ❌         | ✅          | Batch events for better performance     |
 
 ### Converting from Effects to Watchers
 
@@ -543,15 +545,17 @@ const uiWatcher = new Signal.subtle.Watcher(() => {
   const changes = uiWatcher.getPending();
 
   // Batch DOM updates for better performance
-  const updates = changes.map(signal => {
-    if (signal === userSignal) return () => updateUserDisplay(signal.peek());
-    if (signal === cartSignal) return () => updateCartDisplay(signal.peek());
-    return null;
-  }).filter(Boolean);
+  const updates = changes
+    .map((signal) => {
+      if (signal === userSignal) return () => updateUserDisplay(signal.peek());
+      if (signal === cartSignal) return () => updateCartDisplay(signal.peek());
+      return null;
+    })
+    .filter(Boolean);
 
   // Apply all updates in a single animation frame
   requestAnimationFrame(() => {
-    updates.forEach(update => update());
+    updates.forEach((update) => update());
   });
 });
 
