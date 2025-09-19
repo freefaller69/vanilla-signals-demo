@@ -413,7 +413,7 @@ You can observe the efficiency in the browser dev tools:
 
 ```javascript
 // Add this to see when computations happen
-const activeThread = computed(() => {
+const activeThread = new Signal.Computed(() => {
   console.log('activeThread computing...'); // Only logs when actually needed
   const allThreads = threads.get();
   const currentId = activeThreadId.get();
