@@ -85,21 +85,7 @@ class SignalSystem {
   removeSubscriber(dep, subscriber) {
     if (dep && dep._subscribers) {
       dep._subscribers.delete(subscriber);
-
-      // Check if signal has no more watchers and trigger unwatched callback
-      if (
-        dep._subscribers.size === 0 &&
-        dep._unwatchedCallbacks &&
-        dep._unwatchedCallbacks.size > 0
-      ) {
-        dep._unwatchedCallbacks.forEach((callback) => {
-          try {
-            callback.call(dep);
-          } catch (err) {
-            console.error('Error in unwatched callback:', err);
-          }
-        });
-      }
+      Signal._triggerUnwatchedCallbacks(dep);
     }
   }
 
@@ -155,22 +141,84 @@ class Signal {
     throw new Error('get() must be implemented by subclass');
   }
 
+  // Shared utility methods
+  _initializeLifecycleCallbacks(options) {
+    this._watchedCallbacks = new Set();
+    this._unwatchedCallbacks = new Set();
+
+    if (options[Signal.subtle.watched]) {
+      this._watchedCallbacks.add(options[Signal.subtle.watched]);
+    }
+
+    if (options[Signal.subtle.unwatched]) {
+      this._unwatchedCallbacks.add(options[Signal.subtle.unwatched]);
+    }
+  }
+
+  _trackDependency() {
+    if (defaultSystem.currentComputation) {
+      this._subscribers.add(defaultSystem.currentComputation);
+      defaultSystem.currentComputation.dependencies.add(this);
+
+      this._watchedCallbacks.forEach((callback) => {
+        this._safeExecuteCallback(callback, 'watched callback');
+      });
+    }
+  }
+
+  _clearLifecycleCallbacks() {
+    if (this._subscribers) {
+      this._subscribers.clear();
+    }
+    if (this._watchedCallbacks) {
+      this._watchedCallbacks.clear();
+    }
+    if (this._unwatchedCallbacks) {
+      this._unwatchedCallbacks.clear();
+    }
+  }
+
+  _safeExecuteCallback(callback, context) {
+    try {
+      callback.call(this);
+    } catch (err) {
+      console.error(`Error in ${context}:`, err);
+    }
+  }
+
+  static _triggerUnwatchedCallbacks(signal) {
+    if (
+      signal._subscribers.size === 0 &&
+      signal._unwatchedCallbacks &&
+      signal._unwatchedCallbacks.size > 0
+    ) {
+      signal._unwatchedCallbacks.forEach((callback) => {
+        try {
+          callback.call(signal);
+        } catch (err) {
+          console.error('Error in unwatched callback:', err);
+        }
+      });
+    }
+  }
+
+  static _safeCleanup(cleanupFn, context) {
+    if (cleanupFn && typeof cleanupFn === 'function') {
+      try {
+        cleanupFn();
+      } catch (err) {
+        console.error(`Error in ${context}:`, err);
+      }
+    }
+  }
+
   static State = class State extends Signal {
     constructor(initialValue, options = {}) {
       super();
       this._value = initialValue;
       this._subscribers = new Set();
       this._options = options;
-      this._watchedCallbacks = new Set();
-      this._unwatchedCallbacks = new Set();
-
-      if (options[Signal.subtle.watched]) {
-        this._watchedCallbacks.add(options[Signal.subtle.watched]);
-      }
-
-      if (options[Signal.subtle.unwatched]) {
-        this._unwatchedCallbacks.add(options[Signal.subtle.unwatched]);
-      }
+      this._initializeLifecycleCallbacks(options);
     }
 
     get() {
@@ -178,18 +226,7 @@ class Signal {
         throw new Error('Cannot access disposed signal');
       }
 
-      if (defaultSystem.currentComputation) {
-        this._subscribers.add(defaultSystem.currentComputation);
-        defaultSystem.currentComputation.dependencies.add(this);
-
-        this._watchedCallbacks.forEach((callback) => {
-          try {
-            callback.call(this);
-          } catch (err) {
-            console.error('Error in watched callback:', err);
-          }
-        });
-      }
+      this._trackDependency();
       return this._value;
     }
 
@@ -211,20 +248,7 @@ class Signal {
     }
 
     dispose() {
-      // Clear all subscribers and notify them they're being disposed
-      if (this._subscribers) {
-        this._subscribers.clear();
-      }
-
-      // Clear lifecycle callbacks
-      if (this._watchedCallbacks) {
-        this._watchedCallbacks.clear();
-      }
-      if (this._unwatchedCallbacks) {
-        this._unwatchedCallbacks.clear();
-      }
-
-      // Clear value and mark as disposed
+      this._clearLifecycleCallbacks();
       this._value = undefined;
       this._disposed = true;
     }
@@ -240,16 +264,7 @@ class Signal {
       this._isStale = true;
       this._cachedValue = undefined;
       this._isComputing = false;
-      this._watchedCallbacks = new Set();
-      this._unwatchedCallbacks = new Set();
-
-      if (options[Signal.subtle.watched]) {
-        this._watchedCallbacks.add(options[Signal.subtle.watched]);
-      }
-
-      if (options[Signal.subtle.unwatched]) {
-        this._unwatchedCallbacks.add(options[Signal.subtle.unwatched]);
-      }
+      this._initializeLifecycleCallbacks(options);
     }
 
     get() {
@@ -257,18 +272,7 @@ class Signal {
         throw new Error('Cannot access disposed computed signal');
       }
 
-      if (defaultSystem.currentComputation) {
-        this._subscribers.add(defaultSystem.currentComputation);
-        defaultSystem.currentComputation.dependencies.add(this);
-
-        this._watchedCallbacks.forEach((callback) => {
-          try {
-            callback.call(this);
-          } catch (err) {
-            console.error('Error in watched callback:', err);
-          }
-        });
-      }
+      this._trackDependency();
 
       if (this._isStale && !this._isComputing) {
         this._computeValue();
@@ -353,18 +357,7 @@ class Signal {
       this._dependencies.forEach((dep) => defaultSystem.removeSubscriber(dep, this));
       this._dependencies.clear();
 
-      // Clear subscribers
-      if (this._subscribers) {
-        this._subscribers.clear();
-      }
-
-      // Clear lifecycle callbacks
-      if (this._watchedCallbacks) {
-        this._watchedCallbacks.clear();
-      }
-      if (this._unwatchedCallbacks) {
-        this._unwatchedCallbacks.clear();
-      }
+      this._clearLifecycleCallbacks();
 
       // Clear computation state
       this._callback = null;
@@ -416,21 +409,7 @@ class Signal {
               for (const subscriber of signal._subscribers) {
                 if (subscriber._watcher === this) {
                   signal._subscribers.delete(subscriber);
-
-                  // Check if signal has no more watchers and trigger unwatched callback
-                  if (
-                    signal._subscribers.size === 0 &&
-                    signal._unwatchedCallbacks &&
-                    signal._unwatchedCallbacks.size > 0
-                  ) {
-                    signal._unwatchedCallbacks.forEach((callback) => {
-                      try {
-                        callback.call(signal);
-                      } catch (err) {
-                        console.error('Error in unwatched callback:', err);
-                      }
-                    });
-                  }
+                  Signal._triggerUnwatchedCallbacks(signal);
                   break;
                 }
               }
@@ -500,14 +479,8 @@ function effect(fn) {
 
   function runEffect() {
     // Clean up previous run
-    if (cleanup && typeof cleanup === 'function') {
-      try {
-        cleanup();
-      } catch (err) {
-        console.error('Error in effect cleanup:', err);
-      }
-      cleanup = null;
-    }
+    Signal._safeCleanup(cleanup, 'effect cleanup');
+    cleanup = null;
 
     // Unwatch old dependencies
     if (dependencies.size > 0) {
@@ -546,13 +519,7 @@ function effect(fn) {
   // Return disposal function
   return () => {
     isActive = false;
-    if (cleanup && typeof cleanup === 'function') {
-      try {
-        cleanup();
-      } catch (err) {
-        console.error('Error in effect cleanup:', err);
-      }
-    }
+    Signal._safeCleanup(cleanup, 'effect cleanup');
     if (dependencies.size > 0) {
       watcher.unwatch(...Array.from(dependencies));
     }
