@@ -21,12 +21,14 @@ The existing signals implementation (`src/signals/signals.js`) was analyzed agai
 **Score: 6.5/10**
 
 **Strengths:**
+
 - Automatic dependency tracking ✅
 - Lazy evaluation and memoization ✅
 - Circular dependency detection ✅
 - Error handling ✅
 
 **Major Gaps:**
+
 - Used factory functions instead of TC39 classes ❌
 - Missing `Signal.subtle` namespace ❌
 - No `SignalOptions` support ❌
@@ -45,7 +47,9 @@ const state = new Signal.State(initialValue, options);
 const computed = new Signal.Computed(callback, options);
 
 // Signal.subtle namespace
-Signal.subtle.untrack(() => { /* ... */ });
+Signal.subtle.untrack(() => {
+  /* ... */
+});
 const watcher = new Signal.subtle.Watcher(notify);
 ```
 
@@ -75,11 +79,13 @@ const watcher = new Signal.subtle.Watcher(notify);
 ## Production Safety Improvements
 
 ### Issue 1: Component Effect Disposal Memory Leak
+
 **Severity: HIGH**
 
 **Problem:** Components created effects but never cleaned them up when removed from DOM.
 
 **Solution:**
+
 ```javascript
 // Added to components
 connectedCallback() {
@@ -94,35 +100,42 @@ disconnectedCallback() {
 ```
 
 **Files Updated:**
+
 - `src/components/Chat/Chat.js`
 - `src/components/Sidebar/Sidebar.js`
 
 ### Issue 2: Missing TC39 Lifecycle Callbacks
+
 **Severity: MEDIUM**
 
 **Problem:** No `unwatched` callback support as specified in TC39 proposal.
 
 **Solution:**
+
 - Added `_unwatchedCallbacks` tracking to all signals
 - Implemented automatic triggering when signals lose all subscribers
 - Added support in both `removeSubscriber()` and `Watcher.unwatch()`
 
 ### Issue 3: Watcher Microtask Pressure
+
 **Severity: LOW-MEDIUM**
 
 **Problem:** Each signal change created individual microtasks.
 
 **Solution:**
+
 - Implemented shared microtask scheduler in `SignalSystem`
 - Batches all watcher notifications into single microtask
 - Reduced microtask pressure under heavy updates
 
 ### Issue 4: Missing Signal Disposal
+
 **Severity: LOW**
 
 **Problem:** No way to completely dispose of signals and clean up resources.
 
 **Solution:**
+
 - Added `dispose()` methods to both `Signal.State` and `Signal.Computed`
 - Disposal safety checks prevent access to disposed signals
 - Complete cleanup of subscribers, callbacks, and references
@@ -152,6 +165,7 @@ disconnectedCallback() {
 ### Debug Code Cleanup
 
 Removed all production-unfriendly code:
+
 - **20 console.log statements** across 5 files
 - **Dead code**: Commented-out `autoSelectFirstThread()` method
 - **Unused imports**: Cleaned up main.js imports
@@ -161,6 +175,7 @@ Removed all production-unfriendly code:
 **Before:** 570 lines → **After:** 536 lines (6% reduction)
 
 **Extracted Shared Methods:**
+
 1. `_initializeLifecycleCallbacks(options)` - 12 lines saved
 2. `_trackDependency()` - 15 lines saved
 3. `_clearLifecycleCallbacks()` - 10 lines saved
@@ -169,6 +184,7 @@ Removed all production-unfriendly code:
 6. `_safeCleanup(fn, context)` - 8+ lines saved
 
 **Benefits:**
+
 - Single source of truth for shared logic
 - Consistent error handling patterns
 - Easier maintenance and testing
@@ -179,6 +195,7 @@ Removed all production-unfriendly code:
 ### TC39 Compliance Score: 9.8/10
 
 **Perfect Compliance:**
+
 - ✅ Core API structure matches exactly
 - ✅ All required methods implemented
 - ✅ Signal.subtle namespace complete
@@ -187,12 +204,14 @@ Removed all production-unfriendly code:
 - ✅ Framework interoperability ready
 
 **Value-Added Extensions:**
+
 - ✅ `peek()` method for convenience
 - ✅ `batch()` function for performance
 - ✅ `effect()` function using TC39 Watcher
 - ✅ `dispose()` methods for resource management
 
 **Production-Ready Features:**
+
 - ✅ Stack overflow protection
 - ✅ Memory leak prevention
 - ✅ Performance optimization
@@ -201,9 +220,11 @@ Removed all production-unfriendly code:
 ## Files Modified
 
 ### New Files Created
+
 - `src/signals/signals_tc39.js` - Complete TC39-compliant implementation
 
 ### Files Updated
+
 - `src/store/messageStore.js` - Updated to use TC39 signals
 - `src/components/Chat/Chat.js` - Added effect disposal, removed debug logs
 - `src/components/Sidebar/Sidebar.js` - Added effect disposal, removed debug logs

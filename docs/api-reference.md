@@ -13,26 +13,32 @@ console.log(count.get()); // 5
 ```
 
 #### Constructor
+
 ```javascript
 new Signal.State(initialValue, options?)
 ```
 
 **Parameters:**
+
 - `initialValue: any` - The initial value of the signal
 - `options?: SignalOptions` - Optional configuration
 
 #### Methods
 
 ##### `get(): T`
+
 Returns the current value and tracks dependency if called within a computation.
 
 ##### `set(value: T): void`
+
 Updates the signal value. Only triggers updates if the new value is different (using custom `equals` or `===`).
 
 ##### `peek(): T`
+
 Returns the current value without tracking dependency.
 
 ##### `dispose(): void`
+
 Cleans up the signal and prevents further access.
 
 ### Signal.Computed
@@ -45,23 +51,28 @@ console.log(doubled.get()); // Auto-updates when count changes
 ```
 
 #### Constructor
+
 ```javascript
 new Signal.Computed(callback, options?)
 ```
 
 **Parameters:**
+
 - `callback: () => T` - Function that computes the value
 - `options?: SignalOptions` - Optional configuration
 
 #### Methods
 
 ##### `get(): T`
+
 Returns the computed value, recalculating if stale.
 
 ##### `peek(): T`
+
 Returns the computed value without tracking dependency.
 
 ##### `dispose(): void`
+
 Cleans up the computed signal and all its dependencies.
 
 ## SignalOptions
@@ -79,12 +90,16 @@ interface SignalOptions<T> {
 ### Properties
 
 #### `equals?: (a: T, b: T) => boolean`
+
 Custom comparison function to determine if values are equal.
 
 ```javascript
-const obj = new Signal.State({ id: 1 }, {
-  equals: (a, b) => a.id === b.id
-});
+const obj = new Signal.State(
+  { id: 1 },
+  {
+    equals: (a, b) => a.id === b.id,
+  }
+);
 ```
 
 #### Lifecycle Callbacks
@@ -92,7 +107,7 @@ const obj = new Signal.State({ id: 1 }, {
 ```javascript
 const signal = new Signal.State(0, {
   [Signal.subtle.watched]: () => console.log('Being watched'),
-  [Signal.subtle.unwatched]: () => console.log('No more watchers')
+  [Signal.subtle.unwatched]: () => console.log('No more watchers'),
 });
 ```
 
@@ -114,6 +129,7 @@ watcher.watch(signal1, signal2);
 ```
 
 #### Constructor
+
 ```javascript
 new Signal.subtle.Watcher(notify: () => void)
 ```
@@ -121,17 +137,21 @@ new Signal.subtle.Watcher(notify: () => void)
 #### Methods
 
 ##### `watch(...signals: Signal[]): void`
+
 Start watching the specified signals.
 
 ##### `unwatch(...signals: Signal[]): void`
+
 Stop watching the specified signals.
 
 ##### `getPending(): Signal[]`
+
 Returns signals that have pending changes.
 
 ### Utility Functions
 
 #### `Signal.subtle.untrack(callback: () => T): T`
+
 Executes callback without tracking dependencies.
 
 ```javascript
@@ -141,12 +161,15 @@ const result = Signal.subtle.untrack(() => {
 ```
 
 #### `Signal.subtle.currentComputed(): Computation | null`
+
 Returns the current computation context, if any.
 
 #### `Signal.subtle.introspectSources(signal: Signal): Signal[]`
+
 Returns the dependencies of a computed signal.
 
 #### `Signal.subtle.introspectSinks(signal: Signal): Computation[]`
+
 Returns the computations that depend on a signal.
 
 ## Extension Functions
@@ -196,9 +219,12 @@ console.log(doubled.get()); // 10
 ### Custom Equality
 
 ```javascript
-const user = new Signal.State({ name: 'John', age: 30 }, {
-  equals: (a, b) => a.name === b.name && a.age === b.age
-});
+const user = new Signal.State(
+  { name: 'John', age: 30 },
+  {
+    equals: (a, b) => a.name === b.name && a.age === b.age,
+  }
+);
 
 const greeting = new Signal.Computed(() => `Hello, ${user.get().name}!`);
 ```
